@@ -1,0 +1,77 @@
+# SynkTime - System Architecture
+
+## Overview
+SynkTime is a comprehensive attendance management system with a hierarchical structure:
+- Empresas (Companies) → Negocios (Businesses) → Sedes (Locations) → Trabajadores (Employees)
+## Estructura de directorios
+
+```
+Synktime Frontend/
+├── assets/
+│   ├── css/
+│   │   ├── main.css
+│   │   ├── layout.css
+│   │   ├── header.css
+│   │   ├── empleados.css
+│   │   ├── attendance.css
+│   │   ├── horarios.css
+│   │   ├── reports.css
+│   │   └── styles.css
+│   ├── img/
+│   ├── js/
+│   │   ├── layout.js
+│   │   ├── empleados.js
+│   │   ├── attendance.js
+│   │   ├── horarios.js
+│   │   └── reports.js
+├── components/
+│   ├── header.php
+│   └── sidebar.php
+├── components/
+│   ├── attendance_modals.php
+│   ├── attendance_query.php
+├── dashboard.php
+├── employees.php
+├── attendance.php
+├── schedules.php
+├── reports.php
+├── login.php
+├── logout.php
+└── index.php
+```
+
+## Descripción de módulos y componentes principales
+
+### 1. **assets/**
+Contiene todos los archivos estáticos:
+- **css/**: Hojas de estilo globales y específicas por módulo/componentes.
+- **js/**: Scripts para layout general y funcionalidades específicas.
+- **img/**: Imágenes utilizadas en la interfaz.
+
+### 2. **components/**
+Componentes reutilizables en la UI, como:
+- **header.php**: Cabecera con logo, título, botón de menú, reloj y menú de usuario (incluye logout).
+- **sidebar.php**: Barra lateral de navegación, se adapta a diferentes módulos.
+- (Otros componentes como attendance_modals.php y attendance_query.php para las funcionalidades de asistencias.)
+
+### 3. **modules/**
+Arquitectura modular para CRUD y vistas principales:
+- **empleados/**: Gestión de empleados (listar, crear, editar, eliminar, consultar).
+- **asistencias/**: Gestión de asistencias (listar, justificar, consultar).
+- **horarios/**: Gestión de horarios (listar, crear, editar, eliminar, asignar).
+- **reportes/**: Visualización de reportes por rango, diario, semanal y mensual.
+
+### 4. **Archivos raíz**
+- **dashboard.php**: Vista principal/resumen del sistema tras login.
+- **employees.php, attendance.php, schedules.php, reports.php**: Páginas principales de secciones, pueden actuar como root para módulos.
+- **login.php**: Formulario de inicio de sesión.
+- **logout.php**: Destruye la sesión y redirige al login.
+- **index.php**: Landing o redirección inicial.
+
+### 5. **Flujo general**
+- El usuario accede a `login.php` e ingresa credenciales.
+- Al autenticarse, navega entre módulos usando el sidebar (`sidebar.php`).
+- El header (`header.php`) muestra el usuario y permite logout.
+- Cada módulo utiliza sus propios scripts y estilos, pero comparten estructura y componentes.
+- El sidebar y el header son comunes y responsivos, con lógica JS centralizada en `assets/js/layout.js`.
+
