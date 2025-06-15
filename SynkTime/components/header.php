@@ -23,8 +23,8 @@
         <div class="system-info">
             <div class="datetime-display">
                 <i class="fas fa-clock"></i>
-                <span id="currentDateTime">2025-05-10 01:42:47</span>
-                <span class="utc-label">UTC</span>
+                <span id="currentDateTime">2025-06-15 07:19:02</span>
+                <span class="timezone-label">Local</span>
             </div>
             <div class="user-dropdown">
                 <button class="user-info" id="userMenuBtn" type="button">
@@ -37,7 +37,7 @@
                 <div class="user-menu" id="userMenu">
                     <a href="/SynkTime/logout.php" class="logout-btn">
                         <i class="fas fa-sign-out-alt"></i>
-                          Cerrar sesión
+                        Cerrar sesión
                     </a>
                 </div>
             </div>
