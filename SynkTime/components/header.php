@@ -35,9 +35,9 @@
                     <i class="fas fa-caret-down dropdown-arrow"></i>
                 </button>
                 <div class="user-menu" id="userMenu">
-                    <a href="<?php echo (basename(dirname($_SERVER['PHP_SELF'])) !== 'Synktime Frontend') ? '../../logout.php' : 'logout.php'; ?>" class="logout-btn">
+                    <a href="/SynkTime/logout.php" class="logout-btn">
                         <i class="fas fa-sign-out-alt"></i>
-                        Cerrar sesión
+                          Cerrar sesión
                     </a>
                 </div>
             </div>
