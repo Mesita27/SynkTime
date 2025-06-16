@@ -1,151 +1,185 @@
 <?php
-// Verificar sesión y permisos
-require_once 'auth/session.php';
+// Incluir la conexión a la base de datos
 require_once 'config/database.php';
 
-// Requerir autenticación
-$user = requireAuth();
-
 /**
- * Obtiene la información de la empresa del usuario actual
+ * Obtiene información de la empresa
+ * 
+ * @param int $empresaId ID de la empresa
+ * @return array|null Información de la empresa
  */
-function getEmpresaInfo($userId) {
+function getEmpresaInfo($empresaId) {
+    global $conn; // Acceder a la conexión global
+    
     try {
-        $conn = getConnection();
         $stmt = $conn->prepare("
-            SELECT e.ID_EMPRESA, e.NOMBRE, e.RUC, e.DIRECCION
-            FROM EMPRESA e
-            INNER JOIN USUARIO u ON e.ID_EMPRESA = u.ID_EMPRESA
-            WHERE u.ID_USUARIO = :userId AND e.ESTADO = 'A'
+            SELECT ID_EMPRESA, NOMBRE, RUC, DIRECCION
+            FROM EMPRESA
+            WHERE ID_EMPRESA = :empresaId AND ESTADO = 'A'
         ");
-        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+        
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
         $stmt->execute();
+        
         return $stmt->fetch(PDO::FETCH_ASSOC);
+        
     } catch (PDOException $e) {
-        error_log("Error obteniendo información de empresa: " . $e->getMessage());
+        error_log("Error al obtener información de empresa: " . $e->getMessage());
         return null;
     }
 }
 
 /**
- * Obtiene todas las sedes de una empresa
+ * Obtiene las sedes de una empresa
+ * 
+ * @param int $empresaId ID de la empresa
+ * @return array Sedes de la empresa
  */
 function getSedesByEmpresa($empresaId) {
+    global $conn;
+    
     try {
-        $conn = getConnection();
         $stmt = $conn->prepare("
-            SELECT ID_SEDE, NOMBRE
+            SELECT ID_SEDE, NOMBRE, DIRECCION
             FROM SEDE
             WHERE ID_EMPRESA = :empresaId AND ESTADO = 'A'
             ORDER BY NOMBRE
         ");
+        
         $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
         $stmt->execute();
+        
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
     } catch (PDOException $e) {
-        error_log("Error obteniendo sedes: " . $e->getMessage());
+        error_log("Error al obtener sedes: " . $e->getMessage());
         return [];
     }
 }
 
 /**
- * Obtiene todos los establecimientos de una sede
+ * Obtiene los establecimientos de una empresa
+ * 
+ * @param int $empresaId ID de la empresa
+ * @param int|null $sedeId ID de la sede (opcional)
+ * @return array Establecimientos
  */
-function getEstablecimientosBySede($sedeId) {
-    try {
-        $conn = getConnection();
-        $stmt = $conn->prepare("
-            SELECT ID_ESTABLECIMIENTO, NOMBRE
-            FROM ESTABLECIMIENTO
-            WHERE ID_SEDE = :sedeId AND ESTADO = 'A'
-            ORDER BY NOMBRE
-        ");
-        $stmt->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Error obteniendo establecimientos: " . $e->getMessage());
-        return [];
-    }
-}
-
-/**
- * Obtiene estadísticas de asistencias para un establecimiento
- */
-function getEstadisticasAsistencia($establecimientoId, $fechaInicio = null, $fechaFin = null) {
-    // Si no se especifican fechas, usar último mes
-    if (!$fechaInicio) {
-        $fechaInicio = date('Y-m-d', strtotime('-1 month'));
-    }
-    if (!$fechaFin) {
-        $fechaFin = date('Y-m-d');
-    }
+function getEstablecimientosByEmpresa($empresaId, $sedeId = null) {
+    global $conn;
     
     try {
-        $conn = getConnection();
+        $query = "
+            SELECT e.ID_ESTABLECIMIENTO, e.NOMBRE, e.DIRECCION, s.ID_SEDE, s.NOMBRE as SEDE_NOMBRE
+            FROM ESTABLECIMIENTO e
+            JOIN SEDE s ON e.ID_SEDE = s.ID_SEDE
+            WHERE s.ID_EMPRESA = :empresaId AND e.ESTADO = 'A'
+        ";
         
-        // Estadísticas básicas
+        if ($sedeId) {
+            $query .= " AND s.ID_SEDE = :sedeId";
+        }
+        
+        $query .= " ORDER BY s.NOMBRE, e.NOMBRE";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
+        
+        if ($sedeId) {
+            $stmt->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
+        }
+        
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener establecimientos: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Obtiene las estadísticas de asistencia para un establecimiento en una fecha
+ * 
+ * @param int $establecimientoId ID del establecimiento
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return array Estadísticas de asistencia
+ */
+function getEstadisticasAsistencia($establecimientoId, $fecha) {
+    global $conn;
+    
+    try {
+        // Consulta para obtener las estadísticas básicas
         $stmt = $conn->prepare("
             SELECT 
                 COUNT(DISTINCT e.ID_EMPLEADO) as total_empleados,
                 SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tiempo,
-                SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde,
-                COUNT(DISTINCT CONCAT(e.ID_EMPLEADO, a.FECHA)) as dias_asistencia
+                SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde
             FROM EMPLEADO e
-            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA BETWEEN :fechaInicio AND :fechaFin
-            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId AND e.ESTADO = 'A'
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId 
+            AND e.ESTADO = 'A' 
+            AND e.ACTIVO = 'S'
         ");
         
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-        $stmt->bindParam(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
-        $stmt->bindParam(':fechaFin', $fechaFin, PDO::PARAM_STR);
         $stmt->execute();
         $estadisticas = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Calcular días laborables en el rango de fechas (aproximado)
-        $start = new DateTime($fechaInicio);
-        $end = new DateTime($fechaFin);
-        $interval = $start->diff($end);
-        $diasLaborables = min($interval->days + 1, 22); // Asumir máximo 22 días laborables/mes
+        // Consulta para calcular las faltas (empleados sin registro de entrada en la fecha)
+        $stmt = $conn->prepare("
+            SELECT COUNT(e.ID_EMPLEADO) as faltas
+            FROM EMPLEADO e
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO 
+                AND a.FECHA = :fecha 
+                AND a.TIPO = 'ENTRADA'
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId 
+            AND e.ESTADO = 'A' 
+            AND e.ACTIVO = 'S'
+            AND a.ID_ASISTENCIA IS NULL
+        ");
         
-        // Calcular faltas (aproximado)
-        $totalPosiblesAsistencias = $estadisticas['total_empleados'] * $diasLaborables;
-        $estadisticas['faltas'] = $totalPosiblesAsistencias - $estadisticas['dias_asistencia'];
-        if ($estadisticas['faltas'] < 0) $estadisticas['faltas'] = 0;
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
+        $stmt->execute();
+        $faltasResult = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Obtener horas trabajadas
+        $estadisticas['faltas'] = $faltasResult['faltas'];
+        
+        // Calcular horas trabajadas (total)
         $stmt = $conn->prepare("
             SELECT 
                 SUM(
                     TIMESTAMPDIFF(
                         MINUTE,
-                        CONCAT(a_entrada.FECHA, ' ', a_entrada.HORA),
-                        CONCAT(a_salida.FECHA, ' ', a_salida.HORA)
-                    )
-                ) / 60 as horas_trabajadas
-            FROM ASISTENCIA a_entrada
-            INNER JOIN ASISTENCIA a_salida ON 
-                a_entrada.ID_EMPLEADO = a_salida.ID_EMPLEADO AND 
-                a_entrada.FECHA = a_salida.FECHA AND
-                a_entrada.TIPO = 'ENTRADA' AND
-                a_salida.TIPO = 'SALIDA'
-            INNER JOIN EMPLEADO e ON a_entrada.ID_EMPLEADO = e.ID_EMPLEADO
-            WHERE 
-                e.ID_ESTABLECIMIENTO = :establecimientoId AND
-                a_entrada.FECHA BETWEEN :fechaInicio AND :fechaFin
+                        CONCAT(entrada.FECHA, ' ', entrada.HORA),
+                        CONCAT(salida.FECHA, ' ', salida.HORA)
+                    ) / 60
+                ) as horas_trabajadas
+            FROM EMPLEADO e
+            JOIN ASISTENCIA entrada ON e.ID_EMPLEADO = entrada.ID_EMPLEADO 
+                AND entrada.FECHA = :fecha 
+                AND entrada.TIPO = 'ENTRADA'
+            JOIN ASISTENCIA salida ON e.ID_EMPLEADO = salida.ID_EMPLEADO 
+                AND salida.FECHA = entrada.FECHA 
+                AND salida.TIPO = 'SALIDA'
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
         ");
         
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-        $stmt->bindParam(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
-        $stmt->bindParam(':fechaFin', $fechaFin, PDO::PARAM_STR);
         $stmt->execute();
-        $horasTrabajadas = $stmt->fetch(PDO::FETCH_ASSOC);
+        $horasResult = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        $estadisticas['horas_trabajadas'] = round($horasTrabajadas['horas_trabajadas'] ?? 0, 1);
+        $estadisticas['horas_trabajadas'] = round($horasResult['horas_trabajadas'] ?? 0);
         
         return $estadisticas;
+        
     } catch (PDOException $e) {
-        error_log("Error obteniendo estadísticas: " . $e->getMessage());
+        error_log("Error al obtener estadísticas: " . $e->getMessage());
         return [
             'total_empleados' => 0,
             'llegadas_tiempo' => 0,
@@ -157,68 +191,52 @@ function getEstadisticasAsistencia($establecimientoId, $fechaInicio = null, $fec
 }
 
 /**
- * Obtiene datos para gráfico de asistencias por hora
+ * Obtiene datos para el gráfico de asistencias por hora (específico del establecimiento)
+ * 
+ * @param int $establecimientoId ID del establecimiento
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return array Datos para el gráfico
  */
-function getAsistenciasPorHora($establecimientoId, $fechaInicio = null, $fechaFin = null) {
-    if (!$fechaInicio) {
-        $fechaInicio = date('Y-m-d', strtotime('-1 month'));
-    }
-    if (!$fechaFin) {
-        $fechaFin = date('Y-m-d');
-    }
+function getAsistenciasPorHoraEstablecimiento($establecimientoId, $fecha) {
+    global $conn;
     
     try {
-        $conn = getConnection();
         $stmt = $conn->prepare("
             SELECT 
-                SUBSTRING(a.HORA, 1, 2) as hora_entrada,
+                SUBSTRING(a.HORA, 1, 2) as hora,
                 COUNT(*) as cantidad
             FROM ASISTENCIA a
-            INNER JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
-            WHERE 
-                e.ID_ESTABLECIMIENTO = :establecimientoId AND
-                a.FECHA BETWEEN :fechaInicio AND :fechaFin AND
-                a.TIPO = 'ENTRADA'
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
+            AND a.FECHA = :fecha
+            AND a.TIPO = 'ENTRADA'
+            AND e.ACTIVO = 'S'
             GROUP BY SUBSTRING(a.HORA, 1, 2)
-            ORDER BY hora_entrada
+            ORDER BY hora
         ");
         
         $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-        $stmt->bindParam(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
-        $stmt->bindParam(':fechaFin', $fechaFin, PDO::PARAM_STR);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->execute();
         
-        // Crear array con todas las horas del día (6-22)
-        $horas = [];
-        $cantidades = [];
+        $resultado = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        for ($i = 6; $i <= 22; $i++) {
-            $horas[$i] = 0;
-        }
+        // Preparar el formato para el gráfico
+        $categories = [];
+        $data = [];
         
-        // Llenar con datos reales
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $hora = (int)$row['hora_entrada'];
-            if (isset($horas[$hora])) {
-                $horas[$hora] = (int)$row['cantidad'];
-            }
-        }
-        
-        // Formatear para ApexCharts
-        $labels = [];
-        $values = [];
-        
-        foreach ($horas as $hora => $cantidad) {
-            $labels[] = $hora . ':00';
-            $values[] = $cantidad;
+        foreach ($resultado as $fila) {
+            $categories[] = $fila['hora'] . ':00';
+            $data[] = (int)$fila['cantidad'];
         }
         
         return [
-            'categories' => $labels,
-            'data' => $values
+            'categories' => $categories,
+            'data' => $data
         ];
+        
     } catch (PDOException $e) {
-        error_log("Error obteniendo asistencias por hora: " . $e->getMessage());
+        error_log("Error al obtener asistencias por hora del establecimiento: " . $e->getMessage());
         return [
             'categories' => [],
             'data' => []
@@ -227,59 +245,63 @@ function getAsistenciasPorHora($establecimientoId, $fechaInicio = null, $fechaFi
 }
 
 /**
- * Obtiene datos para gráfico de distribución de asistencias
+ * Obtiene datos para el gráfico de distribución de asistencias (específico del establecimiento)
+ * 
+ * @param int $establecimientoId ID del establecimiento
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return array Datos para el gráfico
  */
-function getDistribucionAsistencias($establecimientoId, $fechaInicio = null, $fechaFin = null) {
-    if (!$fechaInicio) {
-        $fechaInicio = date('Y-m-d', strtotime('-1 month'));
-    }
-    if (!$fechaFin) {
-        $fechaFin = date('Y-m-d');
-    }
+function getDistribucionAsistenciasEstablecimiento($establecimientoId, $fecha) {
+    global $conn;
     
     try {
-        $conn = getConnection();
-        
-        // Obtener a tiempo, tardanzas y total posible
+        // Consulta para obtener el total de empleados, asistencias a tiempo y tardanzas
         $stmt = $conn->prepare("
             SELECT 
                 COUNT(DISTINCT e.ID_EMPLEADO) as total_empleados,
-                SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as a_tiempo,
-                SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as tardanzas
+                SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tiempo,
+                SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde
             FROM EMPLEADO e
-            LEFT JOIN ASISTENCIA a ON 
-                e.ID_EMPLEADO = a.ID_EMPLEADO AND 
-                a.FECHA BETWEEN :fechaInicio AND :fechaFin
-            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId AND e.ESTADO = 'A'
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
         ");
         
         $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-        $stmt->bindParam(':fechaInicio', $fechaInicio, PDO::PARAM_STR);
-        $stmt->bindParam(':fechaFin', $fechaFin, PDO::PARAM_STR);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->execute();
         
         $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Calcular días laborables en el rango de fechas (aproximado)
-        $start = new DateTime($fechaInicio);
-        $end = new DateTime($fechaFin);
-        $interval = $start->diff($end);
-        $diasLaborables = min($interval->days + 1, 22); // Asumir máximo 22 días laborables/mes
+        // Consulta para calcular las faltas (empleados sin registro de entrada en la fecha)
+        $stmt = $conn->prepare("
+            SELECT COUNT(e.ID_EMPLEADO) as faltas
+            FROM EMPLEADO e
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO 
+                AND a.FECHA = :fecha 
+                AND a.TIPO = 'ENTRADA'
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId 
+            AND e.ESTADO = 'A' 
+            AND e.ACTIVO = 'S'
+            AND a.ID_ASISTENCIA IS NULL
+        ");
         
-        // Calcular total posible de asistencias
-        $totalPosible = $resultado['total_empleados'] * $diasLaborables;
-        $faltas = $totalPosible - ($resultado['a_tiempo'] + $resultado['tardanzas']);
-        if ($faltas < 0) $faltas = 0;
+        $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        $faltasResult = $stmt->fetch(PDO::FETCH_ASSOC);
         
         return [
             'series' => [
-                (int)$resultado['a_tiempo'],
-                (int)$resultado['tardanzas'],
-                (int)$faltas
+                (int)$resultado['llegadas_tiempo'],
+                (int)$resultado['llegadas_tarde'],
+                (int)$faltasResult['faltas']
             ]
         ];
+        
     } catch (PDOException $e) {
-        error_log("Error obteniendo distribución de asistencias: " . $e->getMessage());
+        error_log("Error al obtener distribución de asistencias del establecimiento: " . $e->getMessage());
         return [
             'series' => [0, 0, 0]
         ];
@@ -287,74 +309,326 @@ function getDistribucionAsistencias($establecimientoId, $fechaInicio = null, $fe
 }
 
 /**
- * Obtiene actividad reciente (últimas asistencias)
+ * Obtiene la actividad reciente de asistencias (específico del establecimiento)
+ * 
+ * @param int $establecimientoId ID del establecimiento
+ * @param string $fecha Fecha en formato Y-m-d
+ * @param int $limit Límite de registros
+ * @return array Registros de actividad
  */
-function getActividadReciente($establecimientoId, $limite = 5) {
+function getActividadRecienteEstablecimiento($establecimientoId, $fecha = null, $limit = 10) {
+    global $conn;
+    
+    if (!$fecha) {
+        $fecha = date('Y-m-d');
+    }
+    
     try {
-        $conn = getConnection();
         $stmt = $conn->prepare("
             SELECT 
                 a.ID_ASISTENCIA,
-                a.FECHA,
-                a.HORA,
-                a.TIPO,
-                a.TARDANZA,
                 e.ID_EMPLEADO,
                 e.NOMBRE,
                 e.APELLIDO,
+                a.HORA,
+                a.TIPO,
+                a.TARDANZA,
+                a.OBSERVACION,
                 s.NOMBRE as SEDE_NOMBRE,
                 est.NOMBRE as ESTABLECIMIENTO_NOMBRE
             FROM ASISTENCIA a
-            INNER JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
-            INNER JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-            INNER JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
             WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
-            ORDER BY a.FECHA DESC, a.HORA DESC
+            AND a.FECHA = :fecha
+            AND e.ACTIVO = 'S'
+            ORDER BY a.ID_ASISTENCIA DESC
             LIMIT :limite
         ");
         
         $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-        $stmt->bindParam(':limite', $limite, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->bindParam(':limite', $limit, PDO::PARAM_INT);
         $stmt->execute();
         
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
     } catch (PDOException $e) {
-        error_log("Error obteniendo actividad reciente: " . $e->getMessage());
+        error_log("Error al obtener actividad reciente del establecimiento: " . $e->getMessage());
         return [];
     }
 }
 
-// Obtener información de la empresa del usuario actual
-$empresaInfo = getEmpresaInfo($user['id']);
-
-// Obtener todas las sedes de la empresa
-$sedes = [];
-if ($empresaInfo) {
-    $sedes = getSedesByEmpresa($empresaInfo['ID_EMPRESA']);
+/**
+ * Obtiene datos para el gráfico de asistencias por hora (nivel empresa)
+ * 
+ * @param int $empresaId ID de la empresa
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return array Datos para el gráfico
+ */
+function getAsistenciasPorHora($empresaId, $fecha) {
+    global $conn;
+    
+    try {
+        $stmt = $conn->prepare("
+            SELECT 
+                SUBSTRING(a.HORA, 1, 2) as hora,
+                COUNT(*) as cantidad
+            FROM ASISTENCIA a
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+            WHERE s.ID_EMPRESA = :empresaId
+            AND a.FECHA = :fecha
+            AND a.TIPO = 'ENTRADA'
+            AND e.ACTIVO = 'S'
+            GROUP BY SUBSTRING(a.HORA, 1, 2)
+            ORDER BY hora
+        ");
+        
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $resultado = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Preparar el formato para el gráfico
+        $categories = [];
+        $data = [];
+        
+        foreach ($resultado as $fila) {
+            $categories[] = $fila['hora'] . ':00';
+            $data[] = (int)$fila['cantidad'];
+        }
+        
+        return [
+            'categories' => $categories,
+            'data' => $data
+        ];
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener asistencias por hora: " . $e->getMessage());
+        return [
+            'categories' => [],
+            'data' => []
+        ];
+    }
 }
 
-// Por defecto, seleccionar la primera sede si hay disponibles
-$sedeSeleccionada = !empty($sedes) ? $sedes[0]['ID_SEDE'] : null;
-
-// Obtener establecimientos de la primera sede
-$establecimientos = [];
-if ($sedeSeleccionada) {
-    $establecimientos = getEstablecimientosBySede($sedeSeleccionada);
+/**
+ * Obtiene datos para el gráfico de distribución de asistencias (nivel empresa)
+ * 
+ * @param int $empresaId ID de la empresa
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return array Datos para el gráfico
+ */
+function getDistribucionAsistencias($empresaId, $fecha) {
+    global $conn;
+    
+    try {
+        // Consulta para obtener el total de empleados, asistencias a tiempo y tardanzas
+        $stmt = $conn->prepare("
+            SELECT 
+                COUNT(DISTINCT e.ID_EMPLEADO) as total_empleados,
+                SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tiempo,
+                SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde
+            FROM EMPLEADO e
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha
+            WHERE s.ID_EMPRESA = :empresaId
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
+        ");
+        
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Consulta para calcular las faltas (empleados sin registro de entrada en la fecha)
+        $stmt = $conn->prepare("
+            SELECT COUNT(e.ID_EMPLEADO) as faltas
+            FROM EMPLEADO e
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO 
+                AND a.FECHA = :fecha 
+                AND a.TIPO = 'ENTRADA'
+            WHERE s.ID_EMPRESA = :empresaId 
+            AND e.ESTADO = 'A' 
+            AND e.ACTIVO = 'S'
+            AND a.ID_ASISTENCIA IS NULL
+        ");
+        
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        $faltasResult = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return [
+            'series' => [
+                (int)$resultado['llegadas_tiempo'],
+                (int)$resultado['llegadas_tarde'],
+                (int)$faltasResult['faltas']
+            ]
+        ];
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener distribución de asistencias: " . $e->getMessage());
+        return [
+            'series' => [0, 0, 0]
+        ];
+    }
 }
 
-// Por defecto, seleccionar el primer establecimiento si hay disponibles
-$establecimientoSeleccionado = !empty($establecimientos) ? $establecimientos[0]['ID_ESTABLECIMIENTO'] : null;
+/**
+ * Obtiene la actividad reciente de asistencias (nivel empresa)
+ * 
+ * @param int $empresaId ID de la empresa
+ * @param string $fecha Fecha en formato Y-m-d
+ * @param int $limit Límite de registros
+ * @return array Registros de actividad
+ */
+function getActividadReciente($empresaId, $fecha = null, $limit = 10) {
+    global $conn;
+    
+    if (!$fecha) {
+        $fecha = date('Y-m-d');
+    }
+    
+    try {
+        $stmt = $conn->prepare("
+            SELECT 
+                a.ID_ASISTENCIA,
+                e.ID_EMPLEADO,
+                e.NOMBRE,
+                e.APELLIDO,
+                a.HORA,
+                a.TIPO,
+                a.TARDANZA,
+                a.OBSERVACION,
+                s.NOMBRE as SEDE_NOMBRE
+            FROM ASISTENCIA a
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+            WHERE s.ID_EMPRESA = :empresaId
+            AND a.FECHA = :fecha
+            AND e.ACTIVO = 'S'
+            ORDER BY a.ID_ASISTENCIA DESC
+            LIMIT :limite
+        ");
+        
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->bindParam(':limite', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener actividad reciente: " . $e->getMessage());
+        return [];
+    }
+}
 
-// Obtener estadísticas iniciales si hay un establecimiento seleccionado
-$estadisticas = null;
-$asistenciasPorHora = null;
-$distribucionAsistencias = null;
-$actividadReciente = null;
+/**
+ * Determina si una llegada es tardía según el horario del empleado
+ * 
+ * @param int $idEmpleado ID del empleado
+ * @param string $hora Hora en formato HH:MM
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return bool True si es tardanza, false si no
+ */
+function esTardanza($idEmpleado, $hora, $fecha) {
+    $horario = getHorarioEmpleado($idEmpleado, $fecha);
+    if (!$horario) return false;
+    
+    // Convertir a minutos para comparación numérica
+    $horaEntradaPartes = explode(':', $horario['HORA_ENTRADA']);
+    $minutosHoraEntrada = (int)$horaEntradaPartes[0] * 60 + (int)$horaEntradaPartes[1];
+    
+    $horaLlegadaPartes = explode(':', $hora);
+    $minutosHoraLlegada = (int)$horaLlegadaPartes[0] * 60 + (int)$horaLlegadaPartes[1];
+    
+    // Considerar tolerancia
+    $toleranciaMinutos = (int)$horario['TOLERANCIA'];
+    
+    return $minutosHoraLlegada > ($minutosHoraEntrada + $toleranciaMinutos);
+}
 
-if ($establecimientoSeleccionado) {
-    $estadisticas = getEstadisticasAsistencia($establecimientoSeleccionado);
-    $asistenciasPorHora = getAsistenciasPorHora($establecimientoSeleccionado);
-    $distribucionAsistencias = getDistribucionAsistencias($establecimientoSeleccionado);
-    $actividadReciente = getActividadReciente($establecimientoSeleccionado);
+/**
+ * Obtiene el horario de un empleado para una fecha específica
+ * 
+ * @param int $idEmpleado ID del empleado
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return array|null Datos del horario o null si no se encuentra
+ */
+function getHorarioEmpleado($idEmpleado, $fecha) {
+    global $conn;
+    
+    try {
+        $stmt = $conn->prepare("
+            SELECT h.*
+            FROM EMPLEADO_HORARIO eh
+            JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
+            WHERE eh.ID_EMPLEADO = :idEmpleado
+            AND eh.FECHA_DESDE <= :fecha
+            AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
+            ORDER BY eh.FECHA_DESDE DESC
+            LIMIT 1
+        ");
+        
+        $stmt->bindParam(':idEmpleado', $idEmpleado, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $resultado ? $resultado : null;
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener horario del empleado: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Obtiene información del usuario logueado
+ * 
+ * @param string $username Nombre de usuario
+ * @return array|null Información del usuario
+ */
+function getUsuarioInfo($username) {
+    global $conn;
+    
+    try {
+        $stmt = $conn->prepare("
+            SELECT 
+                u.ID_USUARIO,
+                u.USERNAME,
+                u.NOMBRE_COMPLETO,
+                u.EMAIL,
+                u.ROL,
+                u.ID_EMPRESA,
+                e.NOMBRE as EMPRESA_NOMBRE
+            FROM USUARIO u
+            JOIN EMPRESA e ON u.ID_EMPRESA = e.ID_EMPRESA
+            WHERE u.USERNAME = :username 
+            AND u.ESTADO = 'A'
+        ");
+        
+        $stmt->bindParam(':username', $username, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener información del usuario: " . $e->getMessage());
+        return null;
+    }
 }
 ?>
