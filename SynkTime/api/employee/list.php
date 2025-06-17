@@ -67,8 +67,8 @@ $sql = "SELECT
             e.FECHA_INGRESO as fecha_contratacion,
             e.ESTADO as estado,
             (SELECT GROUP_CONCAT(h.NOMBRE SEPARATOR ', ') 
-             FROM empleado_horario eh
-             JOIN horario h ON h.ID_HORARIO = eh.ID_HORARIO
+             FROM EMPLEADO_HORARIO eh
+             JOIN HORARIO h ON h.ID_HORARIO = eh.ID_HORARIO
              WHERE eh.ID_EMPLEADO=e.ID_EMPLEADO) as horarios_asignados
         FROM EMPLEADO e
         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
