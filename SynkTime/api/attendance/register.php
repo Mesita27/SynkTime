@@ -5,11 +5,20 @@ require_once __DIR__ . '/../../config/database.php';
 
 header('Content-Type: application/json');
 
+// Verificar que existe el directorio uploads
+$uploads_dir = __DIR__ . '/../../uploads/';
+if (!file_exists($uploads_dir)) {
+    mkdir($uploads_dir, 0755, true);
+}
+
 // Recoge los datos POST
 $id_empleado = $_POST['id_empleado'] ?? null;
 $tipo = $_POST['tipo'] ?? null;
 $fecha = $_POST['fecha'] ?? date('Y-m-d');
 $foto_base64 = $_POST['foto_base64'] ?? null;
+
+// Log para debug (opcional - puedes eliminar después)
+error_log("Datos recibidos: ID=" . $id_empleado . ", TIPO=" . $tipo . ", FOTO=" . (empty($foto_base64) ? 'NO' : 'SÍ'));
 
 // Validación de datos obligatorios
 if (!$id_empleado || !$tipo) {
@@ -26,12 +35,19 @@ if ($tipo === 'ENTRADA') {
     
     // Guardar la foto en disco
     $filename = 'entrada_' . $id_empleado . '_' . date('Ymd_His') . '.jpg';
-    $save_path = __DIR__ . '/../../uploads/' . $filename;
-    $foto_base64 = preg_replace('#^data:image/\w+;base64,#i', '', $foto_base64);
-    $img_data = base64_decode($foto_base64);
+    $save_path = $uploads_dir . $filename;
     
-    if ($img_data === false || file_put_contents($save_path, $img_data) === false) {
-        echo json_encode(['success' => false, 'message' => 'No se pudo guardar la foto.']);
+    // Limpiar el base64
+    $foto_base64_clean = preg_replace('#^data:image/\w+;base64,#i', '', $foto_base64);
+    $img_data = base64_decode($foto_base64_clean);
+    
+    if ($img_data === false) {
+        echo json_encode(['success' => false, 'message' => 'Formato de imagen inválido.']);
+        exit;
+    }
+    
+    if (file_put_contents($save_path, $img_data) === false) {
+        echo json_encode(['success' => false, 'message' => 'No se pudo guardar la foto. Verificar permisos.']);
         exit;
     }
 
@@ -78,17 +94,36 @@ if ($tipo === 'ENTRADA') {
         $tardanza = "Tardía";
     }
 
-    // Inserta la asistencia (entrada) CON FOTO
+    // Verificar el nombre exacto de la tabla y columnas
     $sql = "INSERT INTO asistencia 
         (ID_EMPLEADO, FECHA, TIPO, HORA, TARDANZA, OBSERVACION, FOTO, REGISTRO_MANUAL)
         VALUES (?, ?, 'ENTRADA', ?, ?, NULL, ?, 'N')";
-    $stmt = $conn->prepare($sql);
-    $ok = $stmt->execute([$id_empleado, $fecha, $hora_llegada, $tardanza, $filename]);
     
-    if ($ok) {
-        echo json_encode(['success' => true, 'foto_guardada' => $filename]);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'No se pudo registrar la entrada.']);
+    try {
+        $stmt = $conn->prepare($sql);
+        $ok = $stmt->execute([$id_empleado, $fecha, $hora_llegada, $tardanza, $filename]);
+        
+        if ($ok) {
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Entrada registrada correctamente',
+                'foto_guardada' => $filename,
+                'tardanza' => $tardanza
+            ]);
+        } else {
+            // Si falla el insert, eliminar la foto
+            if (file_exists($save_path)) {
+                unlink($save_path);
+            }
+            echo json_encode(['success' => false, 'message' => 'No se pudo registrar la entrada en la base de datos.']);
+        }
+    } catch (PDOException $e) {
+        // Si falla el insert, eliminar la foto
+        if (file_exists($save_path)) {
+            unlink($save_path);
+        }
+        error_log("Error SQL: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Error en la base de datos: ' . $e->getMessage()]);
     }
     exit;
 }
@@ -110,9 +145,9 @@ if ($tipo === 'SALIDA') {
     // Si se proporciona foto para la salida, procesarla
     if ($foto_base64) {
         $filename = 'salida_' . $id_empleado . '_' . date('Ymd_His') . '.jpg';
-        $save_path = __DIR__ . '/../../uploads/' . $filename;
-        $foto_base64 = preg_replace('#^data:image/\w+;base64,#i', '', $foto_base64);
-        $img_data = base64_decode($foto_base64);
+        $save_path = $uploads_dir . $filename;
+        $foto_base64_clean = preg_replace('#^data:image/\w+;base64,#i', '', $foto_base64);
+        $img_data = base64_decode($foto_base64_clean);
         
         if ($img_data === false || file_put_contents($save_path, $img_data) === false) {
             echo json_encode(['success' => false, 'message' => 'No se pudo guardar la foto de salida.']);
@@ -165,17 +200,23 @@ if ($tipo === 'SALIDA') {
     $sql = "INSERT INTO asistencia 
         (ID_EMPLEADO, FECHA, TIPO, HORA, TARDANZA, OBSERVACION, FOTO, REGISTRO_MANUAL)
         VALUES (?, ?, 'SALIDA', ?, ?, NULL, ?, 'N')";
-    $stmt = $conn->prepare($sql);
-    $ok = $stmt->execute([$id_empleado, $fecha, $hora_salida, $tardanza, $filename]);
     
-    if ($ok) {
-        $response = ['success' => true];
-        if ($filename) {
-            $response['foto_guardada'] = $filename;
+    try {
+        $stmt = $conn->prepare($sql);
+        $ok = $stmt->execute([$id_empleado, $fecha, $hora_salida, $tardanza, $filename]);
+        
+        if ($ok) {
+            $response = ['success' => true, 'message' => 'Salida registrada correctamente'];
+            if ($filename) {
+                $response['foto_guardada'] = $filename;
+            }
+            echo json_encode($response);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'No se pudo registrar la salida.']);
         }
-        echo json_encode($response);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'No se pudo registrar la salida.']);
+    } catch (PDOException $e) {
+        error_log("Error SQL: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Error en la base de datos: ' . $e->getMessage()]);
     }
     exit;
 }
