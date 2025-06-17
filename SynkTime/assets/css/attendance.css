@@ -121,22 +121,31 @@
     display: none;
     position: fixed;
     z-index: 5000;
-    left: 0; top: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.08);
-    align-items: center;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
     justify-content: center;
+    align-items: center;
 }
-.modal.show { display: flex; }
+
+.modal.show {
+    display: flex;
+}
+
 .modal-content {
     background: #fff;
-    padding: 2rem 2rem 1.5rem 2rem;
-    border-radius: 14px;
-    box-shadow: 0 8px 34px 6px rgba(43,125,233,0.10), 0 2px 16px 0 #b5d6fb;
-    min-width: 330px;
-    max-width: 700px;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    max-width: 600px;
     width: 100%;
-    position: relative;
-    animation: fadeIn 0.26s cubic-bezier(.41,1.01,.87,1.02);
+}
+
+#video, #canvas {
+    border-radius: 8px;
+    margin-bottom: 10px;
 }
 .modal-content-md { max-width: 500px; }
 .modal-close {
@@ -154,4 +163,117 @@
     gap: 1.1rem;
     margin-top: 1.4rem;
     justify-content: flex-end;
+}
+/* Responsive styles for attendance modals - MODAL MENOS ALTO */
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10001;
+  left: 0; top: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.4);
+  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+}
+.modal.show {
+  display: flex;
+}
+
+.modal-content,
+.modal-content-md {
+  background: #fff;
+  border-radius: 12px;
+  margin: 2em auto;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.15);
+  padding: 1.2em 1.2em 1em 1.2em;
+  position: relative;
+  max-width: 540px;
+  min-width: 300px;
+  width: 90vw;
+  animation: modal-in 0.20s ease;
+  /* -- Limita el alto máximo -- */
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.modal-content-md {
+  max-width: 700px;
+  width: 98vw;
+  max-height: 75vh;
+}
+
+@keyframes modal-in {
+  from {transform: translateY(30px) scale(0.98);}
+  to {transform: translateY(0) scale(1);}
+}
+
+.modal-close {
+  position: absolute;
+  right: 18px;
+  top: 16px;
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 22px;
+  cursor: pointer;
+}
+.modal-close:focus {
+  outline: 2px solid #2B7DE9;
+}
+
+/* Responsive - Tablets & below */
+@media (max-width: 900px) {
+  .modal-content-md {
+    max-width: 96vw;
+    padding: 1.2em 0.4em 1.1em 0.4em;
+    max-height: 80vh;
+  }
+  .modal-content {
+    padding: 1.2em 0.6em 1em 0.6em;
+    max-height: 75vh;
+  }
+}
+
+/* Responsive - Mobiles */
+@media (max-width: 600px) {
+  .modal-content-md,
+  .modal-content {
+    max-width: 99vw;
+    min-width: 0;
+    width: 99vw;
+    border-radius: 0 0 12px 12px;
+    margin: 0;
+    padding: 1.1em 0.3em 1em 0.3em;
+    max-height: 85vh;
+  }
+  .modal-content-md h3,
+  .modal-content h3 {
+    font-size: 1.18em;
+  }
+  .attendance-table {
+    font-size: 0.92em;
+  }
+  .form-group label,
+  .attendance-filters label {
+    font-size: 1em;
+  }
+  .modal-close {
+    right: 8px;
+    top: 8px;
+    font-size: 20px;
+  }
+  .attendance-table th, .attendance-table td {
+    padding: 0.4em 0.3em;
+  }
+}
+
+/* Responsive table: scroll horizontal on small screens */
+@media (max-width: 600px) {
+  .attendance-table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+    min-width: 400px;
+  }
 }

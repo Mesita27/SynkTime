@@ -1,202 +1,241 @@
-// Datos simulados de asistencias
-const attendanceData = [
-    {
-        codigo: "EMP0101",
-        nombre: "Juan Pérez",
-        departamento: "Recursos Humanos",
-        sede: "Sede Central",
-        fecha: "2025-05-10",
-        hora_entrada: "08:01",
-        hora_salida: "17:00",
-        estado_entrada: "Puntual",
-        estado_salida: "A tiempo",
-        dispositivo: "Bio-RFID 1"
-    },
-    // ...otros registros
-];
-
-// Auxiliar para la clase del estado de salida
-function estadoSalidaClass(estado) {
-    switch (estado) {
-        case 'A tiempo': return 'status-out-atiempo';
-        case 'Tarde': return 'status-out-tarde';
-        case 'Temprano': return 'status-out-temprano';
-        default: return '';
-    }
+// =========== FILTROS PRINCIPALES ===========
+async function cargarFiltros() {
+    let sedes = await fetch('api/get-sedes.php').then(r => r.json());
+    let sedeSel = document.getElementById('filtro_sede');
+    sedeSel.innerHTML = '';
+    sedes.sedes.forEach(s => {
+        sedeSel.innerHTML += `<option value="${s.ID_SEDE}">${s.NOMBRE}</option>`;
+    });
+    sedeSel.onchange = cargarEstablecimientosFiltro2;
+    await cargarEstablecimientosFiltro2();
 }
-
-// Renderizar la tabla
-window.renderAttendanceTable = function(data) {
-    const tbody = document.getElementById('attendanceTableBody');
-    tbody.innerHTML = '';
-    if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">No se encontraron asistencias</td></tr>';
-        return;
-    }
-    data.forEach((att, idx) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${att.empleado}</td>
-                <td>${att.departamento}</td>
-                <td>${att.sede}</td>
-                <td>${att.fecha}</td>
-                <td>${att.hora_entrada}</td>
-                <td>${att.hora_salida}</td>
-                <td><span class="status-in ${att.estado_entrada}">${att.estado_entrada}</span></td>
-                <td><span class="status-out ${estadoSalidaClass(att.estado_salida)}">${att.estado_salida}</span></td>
-                <td>${att.dispositivo}</td>
-                <td>
-                    <button class="btn-icon btn-justify" title="Agregar comentario o acción" onclick="openAttendanceCommentModal(${idx})"><i class="fas fa-comment-dots"></i></button>
-                </td>
-            </tr>
-        `;
+async function cargarEstablecimientosFiltro2() {
+    let sedeId = document.getElementById('filtro_sede').value;
+    let estSel = document.getElementById('filtro_establecimiento');
+    estSel.innerHTML = '';
+    let url = 'api/get-establecimientos.php';
+    if (sedeId) url += '?sede_id=' + encodeURIComponent(sedeId);
+    let res = await fetch(url).then(r => r.json());
+    estSel.innerHTML = '';
+    res.establecimientos.forEach(e => {
+        estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
     });
-};
-
-// Render inicial con todos los datos
-window.renderAttendanceTable(attendanceData);
-
-// Guardar referencia del índice de fila seleccionada para el comentario
-let selectedAttendanceIndex = null;
-
-// Filtrado por día
-document.getElementById('attendanceQueryForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const fecha = document.getElementById('q_fecha').value;
-    const filtered = attendanceData.filter(att => att.fecha === fecha);
-    window.renderAttendanceTable(filtered);
-});
-
-// Limpiar el formulario y reiniciar la tabla al hacer click en limpiar
-document.querySelector('#attendanceQueryForm .btn-secondary').addEventListener('click', function() {
-    document.getElementById('attendanceQueryForm').reset();
-    window.renderAttendanceTable(attendanceData);
-    document.getElementById('q_fecha').value = '';
-});
-
-// Al cambiar la fecha, filtra la tabla automáticamente
-document.getElementById('q_fecha').addEventListener('change', function() {
-    const fecha = this.value;
-    if (fecha) {
-        const filtered = attendanceData.filter(att => att.fecha === fecha);
-        window.renderAttendanceTable(filtered);
-    } else {
-        window.renderAttendanceTable(attendanceData);
-    }
-});
-
-// Modal de comentario/acción
-window.openAttendanceCommentModal = function(idx) {
-    selectedAttendanceIndex = idx;
-    document.getElementById('attendanceCommentForm').reset();
-    document.getElementById('attendanceCommentModal').classList.add('show');
-};
-window.closeAttendanceCommentModal = function() {
-    document.getElementById('attendanceCommentModal').classList.remove('show');
-    selectedAttendanceIndex = null;
-};
-// Cerrar modal al hacer click fuera
-document.addEventListener('mousedown', function(e) {
-    document.querySelectorAll('.modal.show').forEach(modal => {
-        if (e.target === modal) modal.classList.remove('show');
-    });
-});
-// Guardar comentario (demo)
-document.getElementById('attendanceCommentForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    window.closeAttendanceCommentModal();
-    alert('Comentario/acción guardado (demo, sin backend)');
-});
-// Exportar a XLS (demo)
-const btnExport = document.getElementById('btnExportXLS');
-if (btnExport) {
-    btnExport.addEventListener('click', function() {
-        alert("Funcionalidad de exportar a .xls próximamente.");
-    });
+    loadAttendanceDay();
 }
+document.addEventListener('DOMContentLoaded', cargarFiltros);
 
-// --- MODAL DE REGISTRAR ASISTENCIA ---
-window.openAttendanceRegisterModal = function() {
-    renderAttendanceEmployeeTable();
+// =========== TABLA PRINCIPAL ASISTENCIAS ===========
+function loadAttendanceDay() {
+    const sede = document.getElementById('filtro_sede').value;
+    const establecimiento = document.getElementById('filtro_establecimiento').value;
+    let url = `api/attendance/list-day.php?sede=${sede}&establecimiento=${establecimiento}`;
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('attendanceTableBody');
+            tbody.innerHTML = '';
+            if (!data.success || !data.data.length) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No se encontraron asistencias</td></tr>';
+                return;
+            }
+            data.data.forEach(att => {
+                let accion = '';
+                if (!att.SALIDA_HORA) {
+                    accion = `<button type="button" class="btn-primary" onclick="registrarSalida(${att.ID_EMPLEADO}, '${att.FECHA}')">Registrar Salida</button>`;
+                }
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${att.ID_EMPLEADO}</td>
+                        <td>${att.NOMBRE} ${att.APELLIDO}</td>
+                        <td>${att.establecimiento}</td>
+                        <td>${att.sede}</td>
+                        <td>${att.FECHA}</td>
+                        <td>
+                            <div><b>Entrada:</b> ${att.ENTRADA_HORA || '--:--'}</div>
+                            <div><b>Salida:</b> ${att.SALIDA_HORA || '--:--'}</div>
+                        </td>
+                        <td>
+                            <div><b>Entrada:</b> ${att.ENTRADA_ESTADO || '--'}</div>
+                            <div><b>Salida:</b> ${att.SALIDA_ESTADO || '--'}</div>
+                        </td>
+                        <td>${att.FOTO ? `<img src="uploads/${att.FOTO}" width="50">` : '--'}</td>
+                        <td>${accion}</td>
+                    </tr>
+                `;
+            });
+        });
+}
+document.getElementById('filtro_sede').onchange = loadAttendanceDay;
+document.getElementById('filtro_establecimiento').onchange = loadAttendanceDay;
+
+// =========== MODAL REGISTRAR ASISTENCIA (ENTRADA) ===========
+window.openAttendanceRegisterModal = async function() {
     document.getElementById('attendanceRegisterModal').classList.add('show');
-    document.body.style.overflow = 'hidden';
+    document.getElementById('reg_fecha').textContent = new Date().toISOString().split('T')[0];
+    await cargarSedesRegistro();
+    await cargarEstablecimientosRegistro();
+    await cargarEmpleadosParaRegistro();
 };
-
 window.closeAttendanceRegisterModal = function() {
     document.getElementById('attendanceRegisterModal').classList.remove('show');
-    document.body.style.overflow = '';
 };
 
-window.renderAttendanceEmployeeTable = function() {
-    const tbody = document.getElementById('attendanceEmployeeTableBody');
-    tbody.innerHTML = '';
-    if (!window.employees || window.employees.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay empleados registrados</td></tr>';
+// Cargar sedes en modal
+async function cargarSedesRegistro() {
+    const sedeSel = document.getElementById('reg_sede');
+    sedeSel.innerHTML = '<option>Cargando...</option>';
+    const res = await fetch('api/get-sedes.php').then(r => r.json());
+    sedeSel.innerHTML = '';
+    if (res.sedes && res.sedes.length) {
+        res.sedes.forEach(s => {
+            sedeSel.innerHTML += `<option value="${s.ID_SEDE}">${s.NOMBRE}</option>`;
+        });
+    } else {
+        sedeSel.innerHTML = '<option value="">(Sin sedes)</option>';
+    }
+}
+
+// Cargar establecimientos en modal
+async function cargarEstablecimientosRegistro() {
+    const sedeId = document.getElementById('reg_sede').value;
+    const estSel = document.getElementById('reg_establecimiento');
+    estSel.innerHTML = '<option>Cargando...</option>';
+    let url = 'api/get-establecimientos.php';
+    if (sedeId) url += '?sede_id=' + encodeURIComponent(sedeId);
+    const res = await fetch(url).then(r => r.json());
+    estSel.innerHTML = '';
+    if (res.establecimientos && res.establecimientos.length) {
+        res.establecimientos.forEach(e => {
+            estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
+        });
+    } else {
+        estSel.innerHTML = '<option value="">(Sin establecimientos)</option>';
+    }
+}
+
+// Cargar empleados disponibles
+async function cargarEmpleadosParaRegistro() {
+    const sede = document.getElementById('reg_sede').value;
+    const establecimiento = document.getElementById('reg_establecimiento').value;
+    const tbody = document.getElementById('attendanceRegisterTableBody');
+
+    if (!sede || !establecimiento) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Seleccione sede y establecimiento</td></tr>`;
         return;
     }
-    window.employees.forEach((emp, idx) => {
+
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando empleados...</td></tr>';
+    let url = `api/employee/list.php?sede=${sede}&establecimiento=${establecimiento}`;
+    let res = await fetch(url).then(r => r.json());
+    tbody.innerHTML = '';
+    if (!res.data || !res.data.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No hay empleados disponibles</td></tr>`;
+        return;
+    }
+    res.data.forEach(emp => {
         tbody.innerHTML += `
             <tr>
-                <td>${emp.codigo}</td>
+                <td>${emp.id}</td>
                 <td>${emp.nombre} ${emp.apellido}</td>
-                <td>${emp.departamento}</td>
+                <td>${emp.establecimiento}</td>
                 <td>${emp.sede}</td>
                 <td>
-                    <button type="button" class="btn-primary" onclick="registerAttendanceForEmployee(${idx})">
-                        Registrar
+                    <button type="button" class="btn-primary" onclick="openAttendancePhotoModal(${emp.id})">
+                        Registrar Entrada
                     </button>
                 </td>
             </tr>
         `;
     });
-};
+}
 
-window.registerAttendanceForEmployee = function(idx) {
-    const emp = window.employees[idx];
-    const now = new Date();
-    const fecha = now.toISOString().split('T')[0];
-    const hora_entrada = now.toTimeString().slice(0,5);
-    // Puedes ajustar reglas para "estado_entrada" según la hora, aquí demo:
-    const estado_entrada = (hora_entrada <= "08:10") ? "Puntual" : "Tardanza";
-    attendanceData.push({
-        codigo: emp.codigo,
-        nombre: emp.nombre + " " + emp.apellido,
-        departamento: emp.departamento,
-        sede: emp.sede,
-        fecha,
-        hora_entrada,
-        hora_salida: "--:--",
-        estado_entrada,
-        estado_salida: "--",
-        dispositivo: "Manual"
+// Recargar establecimientos y empleados al cambiar sede
+document.getElementById('reg_sede').addEventListener('change', async function() {
+    await cargarEstablecimientosRegistro();
+    await cargarEmpleadosParaRegistro();
+});
+document.getElementById('reg_establecimiento').addEventListener('change', cargarEmpleadosParaRegistro);
+
+// Cerrar modal al hacer click fuera del contenido
+document.getElementById('attendanceRegisterModal').addEventListener('mousedown', function(e) {
+    if (e.target === this) closeAttendanceRegisterModal();
+});
+
+// =========== MODAL FOTO SOLO PARA ENTRADA ===========
+let empleadoSeleccionado = null;
+let imageBase64 = "";
+
+window.openAttendancePhotoModal = function(id_empleado) {
+    empleadoSeleccionado = id_empleado;
+    document.getElementById('attendancePhotoModal').classList.add('show');
+    const video = document.getElementById('video');
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+        video.srcObject = stream;
     });
-    window.renderAttendanceTable(attendanceData);
-    closeAttendanceRegisterModal();
-    alert(`Asistencia registrada para ${emp.nombre} ${emp.apellido}`);
+    document.getElementById('canvas').style.display = 'none';
+    document.getElementById('photoPreview').innerHTML = '';
+    document.getElementById('saveAttendanceBtn').disabled = true;
 };
-
-// --- CORRIGE RENDER DE TABLA DE ASISTENCIA ---
-window.renderAttendanceTable = function(data) {
-    const tbody = document.getElementById('attendanceTableBody');
-    tbody.innerHTML = '';
-    if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">No se encontraron asistencias</td></tr>';
-        return;
+window.closeAttendancePhotoModal = function() {
+    document.getElementById('attendancePhotoModal').classList.remove('show');
+    const video = document.getElementById('video');
+    if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
     }
-    data.forEach((att, idx) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${att.codigo || ""}</td>
-                <td>${att.nombre || ""}</td>
-                <td>${att.departamento || ""}</td>
-                <td>${att.sede || ""}</td>
-                <td>${att.fecha || ""}</td>
-                <td>${att.hora_entrada || ""}</td>
-                <td>${att.hora_salida || ""}</td>
-                <td><span class="status-in ${att.estado_entrada}">${att.estado_entrada || ""}</span></td>
-                <td><span class="status-out ${estadoSalidaClass(att.estado_salida)}">${att.estado_salida || ""}</span></td>
-                <td>${att.dispositivo || ""}</td>
-            </tr>
-        `;
+};
+document.getElementById('takePhotoBtn').onclick = function() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    canvas.style.display = 'block';
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    imageBase64 = canvas.toDataURL('image/jpeg');
+    document.getElementById('photoPreview').innerHTML = `<img src="${imageBase64}" width="160" style="border-radius:6px;">`;
+    document.getElementById('saveAttendanceBtn').disabled = false;
+};
+document.getElementById('saveAttendanceBtn').onclick = function() {
+    fetch('api/attendance/register.php', {
+        method: 'POST',
+        body: new URLSearchParams({
+            id_empleado: empleadoSeleccionado,
+            tipo: 'ENTRADA',
+            foto_base64: imageBase64
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            alert('Asistencia registrada');
+            closeAttendancePhotoModal();
+            closeAttendanceRegisterModal();
+            loadAttendanceDay();
+        } else {
+            alert('Error: ' + res.message);
+        }
+    });
+};
+document.getElementById('attendancePhotoModal').addEventListener('mousedown', function(e) {
+    if (e.target === this) closeAttendancePhotoModal();
+});
+
+// =========== REGISTRAR SALIDA (SIN FOTO) ===========
+window.registrarSalida = function(id_empleado, fecha) {
+    if(!confirm("¿Está seguro de registrar la salida?")) return;
+    fetch('api/attendance/register.php', {
+        method: 'POST',
+        body: new URLSearchParams({
+            id_empleado: id_empleado,
+            tipo: 'SALIDA',
+            fecha: fecha
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            alert('Salida registrada');
+            loadAttendanceDay();
+        } else {
+            alert('Error: ' + (res.message || 'No se pudo registrar la salida.'));
+        }
     });
 };

@@ -1,25 +1,16 @@
 <div class="employee-query-box">
-    <form id="employeeQueryForm" class="employee-query-form" method="get" action="">
+    <form id="employeeQueryForm" class="employee-query-form">
         <div class="query-row">
-            <div class="form-group">
-                <label for="q_codigo">Código</label>
-                <input type="text" name="codigo" id="q_codigo" value="<?= isset($_GET['codigo']) ? htmlspecialchars($_GET['codigo']) : '' ?>" placeholder="Código">
-            </div>
-            <div class="form-group">
-                <label for="q_identificacion">Identificación</label>
-                <input type="text" name="identificacion" id="q_identificacion" value="<?= isset($_GET['identificacion']) ? htmlspecialchars($_GET['identificacion']) : '' ?>" placeholder="Identificación">
-            </div>
-            <div class="form-group">
-                <label for="q_nombre">Nombre</label>
-                <input type="text" name="nombre" id="q_nombre" value="<?= isset($_GET['nombre']) ? htmlspecialchars($_GET['nombre']) : '' ?>" placeholder="Nombre">
-            </div>
-            <div class="form-group">
-                <label for="q_departamento">Departamento</label>
-                <input type="text" name="departamento" id="q_departamento" value="<?= isset($_GET['departamento']) ? htmlspecialchars($_GET['departamento']) : '' ?>" placeholder="Departamento">
-            </div>
+            <div class="form-group"><label for="q_codigo">Código</label><input type="text" name="codigo" id="q_codigo"></div>
+            <div class="form-group"><label for="q_identificacion">Identificación</label><input type="text" name="identificacion" id="q_identificacion"></div>
+            <div class="form-group"><label for="q_nombre">Nombre</label><input type="text" name="nombre" id="q_nombre"></div>
             <div class="form-group">
                 <label for="q_sede">Sede</label>
-                <input type="text" name="sede" id="q_sede" value="<?= isset($_GET['sede']) ? htmlspecialchars($_GET['sede']) : '' ?>" placeholder="Sede">
+                <select name="sede" id="q_sede" class="filter-select"><option value="">Todas</option></select>
+            </div>
+            <div class="form-group">
+                <label for="q_establecimiento">Departamento</label>
+                <select name="establecimiento" id="q_establecimiento" class="filter-select"><option value="">Todos</option></select>
             </div>
             <div class="form-group query-btns">
                 <button type="submit" class="btn-primary"><i class="fas fa-search"></i> Consultar</button>

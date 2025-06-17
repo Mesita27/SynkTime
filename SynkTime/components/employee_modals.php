@@ -1,104 +1,86 @@
-<!-- Modal Registrar/Editar Empleado -->
-<div class="modal" id="employeeModal">
-  <div class="modal-content modal-content-md">
-    <button type="button" class="modal-close" aria-label="Cerrar" onclick="closeEmployeeModal()">
-      <i class="fas fa-times"></i>
-    </button>
-    <h3 id="employeeModalTitle">Registrar empleado</h3>
-    <form id="employeeForm" autocomplete="off">
+<div id="employeeModal" class="modal">
+  <div class="modal-content modal-content-md" id="employeeModalContent">
+    <button type="button" class="modal-close" id="closeEmployeeModal">&times;</button>
+    <h3 id="employeeModalTitle" style="margin-top:0;">Registrar Empleado</h3>
+    <form id="employeeRegisterForm" autocomplete="off">
+      <input type="hidden" name="modo" id="modoEmpleado" value="crear">
       <div class="form-row">
         <div class="form-group">
-          <label for="codigo">Código</label>
-          <input type="text" id="codigo" name="codigo" required>
+          <label for="id_empleado">Código empleado</label>
+          <input type="number" name="id_empleado" id="id_empleado" required>
         </div>
         <div class="form-group">
-          <label for="identificacion">Identificación</label>
-          <input type="text" id="identificacion" name="identificacion" required>
+          <label for="dni">DNI</label>
+          <input type="text" name="dni" id="dni" required>
         </div>
-        <div class="form-group">
-          <label for="tipo_identificacion">Tipo identificación</label>
-          <select id="tipo_identificacion" name="tipo_identificacion" required>
-            <option value="CC">CC</option>
-            <option value="TI">TI</option>
-            <option value="Pasaporte">Pasaporte</option>
-          </select>
-        </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
           <label for="nombre">Nombre</label>
-          <input type="text" id="nombre" name="nombre" required>
+          <input type="text" name="nombre" id="nombre" required>
         </div>
         <div class="form-group">
           <label for="apellido">Apellido</label>
-          <input type="text" id="apellido" name="apellido" required>
-        </div>
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email">
-        </div>
-        <div class="form-group">
-          <label for="telefono">Teléfono</label>
-          <input type="text" id="telefono" name="telefono">
-        </div>
-        <div class="form-group">
-          <label for="direccion">Dirección</label>
-          <input type="text" id="direccion" name="direccion">
+          <input type="text" name="apellido" id="apellido" required>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label for="fecha_nacimiento">Fecha de nacimiento</label>
-          <input type="date" id="fecha_nacimiento" name="fecha_nacimiento">
+          <label for="correo">Correo</label>
+          <input type="email" name="correo" id="correo" required>
         </div>
         <div class="form-group">
-          <label for="fecha_contratacion">Fecha de contratación</label>
-          <input type="date" id="fecha_contratacion" name="fecha_contratacion" required>
+          <label for="telefono">Teléfono</label>
+          <input type="text" name="telefono" id="telefono">
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
-          <label for="genero">Género</label>
-          <select id="genero" name="genero">
-            <option value="">Seleccione</option>
-            <option value="M">Masculino</option>
-            <option value="F">Femenino</option>
-            <option value="Otro">Otro</option>
+          <label for="sedeEmpleado">Sede</label>
+          <select name="sede" id="sedeEmpleado" required>
+            <option value="">Seleccione sede</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="departamentoEmpleado">Departamento</label>
+          <select name="establecimiento" id="departamentoEmpleado" required>
+            <option value="">Seleccione departamento</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fecha_ingreso">Fecha de ingreso</label>
+          <input type="date" name="fecha_ingreso" id="fecha_ingreso" required>
         </div>
         <div class="form-group">
           <label for="estado">Estado</label>
-          <select id="estado" name="estado">
-            <option value="1">Activo</option>
-            <option value="0">Inactivo</option>
+          <select name="estado" id="estado" required>
+            <option value="A">Activo</option>
+            <option value="I">Inactivo</option>
           </select>
-        </div>
-        <div class="form-group">
-          <label for="departamento">Departamento</label>
-          <input type="text" id="departamento" name="departamento">
-        </div>
-        <div class="form-group">
-          <label for="sede">Sede</label>
-          <input type="text" id="sede" name="sede">
-        </div>
-        <div class="form-group">
-          <label for="foto">Foto</label>
-          <input type="file" id="foto" name="foto" accept="image/*">
         </div>
       </div>
       <div class="form-actions">
-        <button type="submit" class="btn-primary" id="saveEmployeeBtn">Guardar</button>
-        <button type="button" class="btn-secondary" onclick="closeEmployeeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary" id="employeeModalSubmitBtn">Registrar</button>
+        <button type="button" class="btn-secondary" id="cancelEmployeeModal">Cancelar</button>
       </div>
+      <div id="employeeFormError" style="color:#e53e3e;text-align:center;margin-top:10px;display:none;"></div>
     </form>
   </div>
 </div>
 
-<!-- Modal Eliminar Empleado -->
-<div class="modal" id="deleteEmployeeModal">
+<!-- Modal para confirmación de eliminación -->
+<div id="employeeDeleteModal" class="modal">
   <div class="modal-content modal-content-sm">
-    <button type="button" class="modal-close" aria-label="Cerrar" onclick="closeDeleteEmployeeModal()"><i class="fas fa-times"></i></button>
+    <button type="button" class="modal-close" id="closeEmployeeDeleteModal">&times;</button>
     <h3>Eliminar empleado</h3>
-    <p>¿Estás seguro de que deseas eliminar este empleado?</p>
-    <div class="form-actions">
-      <button class="btn-danger" id="confirmDeleteEmployeeBtn">Eliminar</button>
-      <button class="btn-secondary" onclick="closeDeleteEmployeeModal()">Cancelar</button>
+    <p id="deleteStep1">¿Estás seguro que deseas eliminar este empleado?</p>
+    <p id="deleteStep2" style="display:none;">Esta acción es irreversible. ¿Confirmas eliminarlo?</p>
+    <div class="form-actions" style="margin-top:1.5rem;">
+      <button type="button" class="btn-danger" id="confirmDeleteEmployeeBtn" style="display:none;">Eliminar definitivamente</button>
+      <button type="button" class="btn-primary" id="verifyDeleteEmployeeBtn">Sí, eliminar</button>
+      <button type="button" class="btn-secondary" id="cancelDeleteEmployeeBtn">Cancelar</button>
     </div>
   </div>
 </div>

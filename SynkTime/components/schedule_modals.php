@@ -4,30 +4,18 @@
         <span class="modal-close" onclick="closeScheduleModal()"><i class="fas fa-times"></i></span>
         <h3 id="scheduleModalTitle">Registrar Horario</h3>
         <form id="scheduleForm">
+            <input type="hidden" id="modal_id_horario" name="id_horario">
             <div class="form-group">
-                <label for="modal_empleado">Empleado</label>
-                <input type="text" id="modal_empleado" name="empleado" required>
-            </div>
-            <div class="form-group">
-                <label for="modal_departamento">Departamento</label>
-                <input type="text" id="modal_departamento" name="departamento" required>
+                <label for="modal_nombre">Nombre del horario</label>
+                <input type="text" id="modal_nombre" name="nombre" required>
             </div>
             <div class="form-group">
                 <label for="modal_sede">Sede</label>
-                <input type="text" id="modal_sede" name="sede" required>
+                <select id="modal_sede" name="sede" required></select>
             </div>
             <div class="form-group">
-                <label for="modal_dia">Día</label>
-                <select id="modal_dia" name="dia" required>
-                    <option value="">Seleccione</option>
-                    <option value="Lunes">Lunes</option>
-                    <option value="Martes">Martes</option>
-                    <option value="Miércoles">Miércoles</option>
-                    <option value="Jueves">Jueves</option>
-                    <option value="Viernes">Viernes</option>
-                    <option value="Sábado">Sábado</option>
-                    <option value="Domingo">Domingo</option>
-                </select>
+                <label for="modal_establecimiento">Establecimiento</label>
+                <select id="modal_establecimiento" name="establecimiento" required></select>
             </div>
             <div class="form-group">
                 <label for="modal_hora_entrada">Hora entrada</label>
@@ -36,6 +24,12 @@
             <div class="form-group">
                 <label for="modal_hora_salida">Hora salida</label>
                 <input type="time" id="modal_hora_salida" name="hora_salida" required>
+            </div>
+            <div class="form-group">
+                <label>Días de la semana</label>
+                <div id="modal_dias" class="dias-checkboxes">
+                    <!-- Se llenan dinámicamente -->
+                </div>
             </div>
             <div class="form-actions">
                 <button type="submit" class="btn-primary">Guardar</button>
@@ -50,7 +44,7 @@
     <div class="modal-content modal-content-sm">
         <span class="modal-close" onclick="closeDeleteScheduleModal()"><i class="fas fa-times"></i></span>
         <h3>Eliminar horario</h3>
-        <p>¿Estás seguro de que deseas eliminar este horario?</p>
+        <p>¿Estás seguro de que deseas eliminar este horario? Se eliminarán también todas las vinculaciones de empleados a este horario.</p>
         <div class="form-actions">
             <button class="btn-danger" id="confirmDeleteScheduleBtn">Eliminar</button>
             <button class="btn-secondary" onclick="closeDeleteScheduleModal()">Cancelar</button>

@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/auth/session.php';
+requireAuth(); // Redirige a login si no hay sesión activa
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -27,7 +31,7 @@
             </div>
             <?php include 'components/employee_query.php'; ?>
             <div class="employee-table-container">
-                <table class="employee-table">
+                <table class="employee-table" id="employeeTable">
                     <thead>
                         <tr>
                             <th>Código</th>
@@ -51,6 +55,8 @@
     </div>
 </div>
 <script src="assets/js/layout.js"></script>
+<script src="assets/js/query.js"></script>
+<script src="assets/js/api.js"></script>
 <script src="assets/js/employee.js"></script>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </body>

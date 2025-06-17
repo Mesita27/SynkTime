@@ -1,174 +1,323 @@
-// Simulación de datos de horarios
-let schedules = [
-    {
-        empleado: "Juan Pérez",
-        departamento: "Recursos Humanos",
-        sede: "Sede Central",
-        dia: "Lunes",
-        hora_entrada: "08:00",
-        hora_salida: "17:00"
-    },
-    {
-        empleado: "Juan Pérez",
-        departamento: "Recursos Humanos",
-        sede: "Sede Central",
-        dia: "Martes",
-        hora_entrada: "08:00",
-        hora_salida: "17:00"
-    },
-    {
-        empleado: "María García",
-        departamento: "TI",
-        sede: "Sede Norte",
-        dia: "Lunes",
-        hora_entrada: "09:00",
-        hora_salida: "18:00"
-    },
-    {
-        empleado: "Carlos López",
-        departamento: "Administración",
-        sede: "Sede Central",
-        dia: "Miércoles",
-        hora_entrada: "07:30",
-        hora_salida: "16:30"
-    }
-    // ...puedes agregar más horarios simulados
-];
+// Variables globales
+let horarios = [];
+let diasSemana = [];
+let sedesCache = [];
+let establecimientosCache = [];
 
-// Renderizar la tabla de horarios
+// 1. Carga inicial
+document.addEventListener('DOMContentLoaded', async function() {
+    await cargarDiasSemana();
+    await cargarSedesFiltro();
+    await cargarEstablecimientosFiltro();
+    await loadHorarios();
+    renderScheduleTable(horarios);
+
+    // Actualiza establecimientos al cambiar sede en filtros
+    document.getElementById('q_sede').addEventListener('change', function() {
+        cargarEstablecimientosFiltro(this.value);
+    });
+});
+
+// -- Cargar días de la semana para checkboxes/modals --
+async function cargarDiasSemana() {
+    await fetch('api/get-dias-semana.php')
+        .then(r => r.json())
+        .then(res => { diasSemana = res.dias || []; });
+}
+
+// -- Cargar sedes y establecimientos para filtros --
+async function cargarSedesFiltro() {
+    const sedeSel = document.getElementById('q_sede');
+    sedeSel.innerHTML = '<option value="">Todas</option>';
+    await fetch('api/get-sedes.php')
+        .then(r=>r.json())
+        .then(res=>{
+            sedesCache = res.sedes || [];
+            sedesCache.forEach(s=>{
+                sedeSel.innerHTML += `<option value="${s.ID_SEDE}">${s.NOMBRE}</option>`;
+            });
+        });
+}
+async function cargarEstablecimientosFiltro(idSede = '') {
+    const estSel = document.getElementById('q_establecimiento');
+    estSel.innerHTML = '<option value="">Todos</option>';
+    if (!idSede) {
+        await fetch('api/get-establecimientos.php')
+            .then(r=>r.json())
+            .then(res=>{
+                establecimientosCache = res.establecimientos || [];
+                establecimientosCache.forEach(e=>{
+                    estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
+                });
+            });
+    } else {
+        await fetch('api/get-establecimientos.php?sede_id=' + encodeURIComponent(idSede))
+            .then(r=>r.json())
+            .then(res=>{
+                establecimientosCache = res.establecimientos || [];
+                establecimientosCache.forEach(e=>{
+                    estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
+                });
+            });
+    }
+}
+
+// -- Cargar horarios (con filtros) --
+async function loadHorarios(filtros = {}) {
+    let params = new URLSearchParams(filtros).toString();
+    await fetch('api/horario/list.php' + (params ? '?' + params : ''))
+        .then(r=>r.json())
+        .then(res=>{
+            horarios = res.horarios || [];
+        });
+}
+
+// -- Render tabla de horarios --
 function renderScheduleTable(data) {
     const tbody = document.getElementById('scheduleTableBody');
     tbody.innerHTML = '';
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No se encontraron horarios</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No se encontraron horarios</td></tr>';
         return;
     }
-    data.forEach((sch, idx) => {
+    data.forEach(hor => {
         tbody.innerHTML += `
             <tr>
-                <td>${sch.empleado}</td>
-                <td>${sch.departamento}</td>
-                <td>${sch.sede}</td>
-                <td>${sch.dia}</td>
-                <td>${sch.hora_entrada}</td>
-                <td>${sch.hora_salida}</td>
+                <td>${hor.ID_HORARIO}</td>
+                <td>${hor.NOMBRE}</td>
+                <td>${hor.SEDE || ''}</td>
+                <td>${hor.ESTABLECIMIENTO || ''}</td>
+                <td>${(hor.DIAS || []).join(', ')}</td>
+                <td>${hor.HORA_ENTRADA}</td>
+                <td>${hor.HORA_SALIDA}</td>
                 <td>
-                    <button class="btn-icon btn-edit" title="Editar" onclick="openEditScheduleModal(${idx})"><i class="fas fa-edit"></i></button>
-                    <button class="btn-icon btn-delete" title="Eliminar" onclick="openDeleteScheduleModal(${idx})"><i class="fas fa-trash"></i></button>
+                    <button class="btn-icon btn-edit" title="Editar" onclick="editarHorario(${hor.ID_HORARIO})"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon btn-delete" title="Eliminar" onclick="eliminarHorario(${hor.ID_HORARIO})"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
     });
 }
 
-// Render inicial con todos los datos
-document.addEventListener('DOMContentLoaded', function() {
-    renderScheduleTable(schedules);
-});
+// -- Helper: Buscar nombre de sede por ID_ESTABLECIMIENTO --
+function buscarNombreSedePorEstablecimiento(idEst) {
+    let est = establecimientosCache.find(e => e.ID_ESTABLECIMIENTO == idEst);
+    if (!est) return '';
+    let sede = sedesCache.find(s => s.ID_SEDE == est.ID_SEDE);
+    return sede ? sede.NOMBRE : '';
+}
 
-// Filtrado al consultar
-document.getElementById('scheduleQueryForm').addEventListener('submit', function(e) {
+// -- Filtros (form) --
+document.getElementById('scheduleQueryForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const empleado = document.getElementById('q_empleado').value.trim().toLowerCase();
-    const departamento = document.getElementById('q_departamento').value.trim().toLowerCase();
-    const sede = document.getElementById('q_sede').value.trim().toLowerCase();
-    const dia = document.getElementById('q_dia').value;
-
-    const filtered = schedules.filter(sch =>
-        (empleado === '' || sch.empleado.toLowerCase().includes(empleado)) &&
-        (departamento === '' || sch.departamento.toLowerCase().includes(departamento)) &&
-        (sede === '' || sch.sede.toLowerCase().includes(sede)) &&
-        (dia === '' || sch.dia === dia)
-    );
-    renderScheduleTable(filtered);
+    const filtros = {
+        id_horario: document.getElementById('q_id_horario')?.value,
+        nombre: document.getElementById('q_nombre')?.value,
+        establecimiento: document.getElementById('q_establecimiento')?.value,
+        hora_entrada: document.getElementById('q_hora_entrada')?.value,
+        hora_salida: document.getElementById('q_hora_salida')?.value,
+        dia: document.getElementById('q_dia')?.value
+    };
+    await loadHorarios(filtros);
+    renderScheduleTable(horarios);
 });
 
-// Limpiar el formulario y reiniciar la tabla al hacer click en limpiar
-document.querySelector('#scheduleQueryForm .btn-secondary').addEventListener('click', function(e) {
+// -- Limpiar filtros --
+document.getElementById('btnClearScheduleQuery').addEventListener('click', async function(e) {
     e.preventDefault();
     document.getElementById('scheduleQueryForm').reset();
-    renderScheduleTable(schedules);
+    await loadHorarios();
+    renderScheduleTable(horarios);
 });
 
-// Modal: Registrar/Editar horario
+// -- Abrir popup Registrar --
 document.getElementById('btnAddSchedule').addEventListener('click', function() {
-    openAddScheduleModal();
+    openScheduleModal();
 });
 
-window.openAddScheduleModal = function() {
-    document.getElementById('scheduleModalTitle').textContent = "Registrar Horario";
-    document.getElementById('scheduleForm').reset();
-    document.getElementById('scheduleModal').classList.add('show');
-};
-window.openEditScheduleModal = function(idx) {
-    const sch = schedules[idx];
-    document.getElementById('scheduleModalTitle').textContent = "Editar Horario";
-    document.getElementById('modal_empleado').value = sch.empleado;
-    document.getElementById('modal_departamento').value = sch.departamento;
-    document.getElementById('modal_sede').value = sch.sede;
-    document.getElementById('modal_dia').value = sch.dia;
-    document.getElementById('modal_hora_entrada').value = sch.hora_entrada;
-    document.getElementById('modal_hora_salida').value = sch.hora_salida;
-    document.getElementById('scheduleModal').classList.add('show');
-};
-window.closeScheduleModal = function() {
-    document.getElementById('scheduleModal').classList.remove('show');
-};
-// Cerrar modal al hacer click fuera
-document.addEventListener('mousedown', function(e) {
-    document.querySelectorAll('.modal.show').forEach(modal => {
-        if (e.target === modal) modal.classList.remove('show');
-    });
-});
-// Guardar horario (demo)
-document.getElementById('scheduleForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const form = e.target;
-    const horario = {
-        empleado: form.empleado.value,
-        departamento: form.departamento.value,
-        sede: form.sede.value,
-        dia: form.dia.value,
-        hora_entrada: form.hora_entrada.value,
-        hora_salida: form.hora_salida.value
-    };
-    if (document.getElementById('scheduleModalTitle').textContent === "Registrar Horario") {
-        schedules.push(horario);
-    } else {
-        // Buscar el índice del horario a editar
-        const idx = schedules.findIndex(s => 
-            s.empleado === form.empleado.value &&
-            s.departamento === form.departamento.value &&
-            s.sede === form.sede.value &&
-            s.dia === form.dia.value
-        );
-        if (idx !== -1) schedules[idx] = horario;
-    }
-    renderScheduleTable(schedules);
-    closeScheduleModal();
-});
-
-// Confirmación visual para eliminar horario
-let deleteScheduleIdx = null;
-window.openDeleteScheduleModal = function(idx) {
-    deleteScheduleIdx = idx;
-    document.getElementById('deleteScheduleModal').classList.add('show');
-};
-window.closeDeleteScheduleModal = function() {
-    document.getElementById('deleteScheduleModal').classList.remove('show');
-};
-document.getElementById('confirmDeleteScheduleBtn').addEventListener('click', function() {
-    if (deleteScheduleIdx !== null) {
-        schedules.splice(deleteScheduleIdx, 1);
-        renderScheduleTable(schedules);
-    }
-    closeDeleteScheduleModal();
-});
-
-// EXPORTAR A XLS
-document.getElementById('btnExportXLS').addEventListener('click', function() {
+// -- Exportar tabla a XLS --
+document.getElementById('btnExportXLS').addEventListener('click', function () {
     const table = document.querySelector('.schedule-table');
     if (!table) return;
     const wb = XLSX.utils.table_to_book(table, {sheet:"Horarios"});
     XLSX.writeFile(wb, 'horarios.xlsx');
+});
+
+// -------- Modal Registrar/Editar --------
+function renderDiasCheckboxes(selected=[]) {
+    const cont = document.getElementById('modal_dias');
+    cont.innerHTML = '';
+    diasSemana.forEach(dia => {
+        cont.innerHTML += `<label>
+            <input type="checkbox" name="dias[]" value="${dia.ID_DIA}" ${selected.includes(dia.ID_DIA) ? 'checked' : ''}> ${dia.NOMBRE}
+        </label>`;
+    });
+}
+
+// Cargar sedes y establecimientos en modal
+async function cargarSedesYEstablecimientosModal(selectedSede = '', selectedEst = '') {
+    // Sedes
+    const sedeSel = document.getElementById('modal_sede');
+    const estSel = document.getElementById('modal_establecimiento');
+    sedeSel.innerHTML = '<option value="">Seleccione sede</option>';
+    await fetch('api/get-sedes.php')
+        .then(r=>r.json())
+        .then(res=>{
+            (res.sedes||[]).forEach(s=>{
+                sedeSel.innerHTML += `<option value="${s.ID_SEDE}" ${selectedSede==s.ID_SEDE?'selected':''}>${s.NOMBRE}</option>`;
+            });
+        });
+    sedeSel.addEventListener('change', function() {
+        cargarEstablecimientosModal(this.value);
+    });
+    cargarEstablecimientosModal(selectedSede, selectedEst);
+}
+async function cargarEstablecimientosModal(idSede, selectedEst = '') {
+    const estSel = document.getElementById('modal_establecimiento');
+    estSel.innerHTML = '<option value="">Seleccione establecimiento</option>';
+    if (!idSede) return;
+    await fetch('api/get-establecimientos.php?sede_id=' + encodeURIComponent(idSede))
+        .then(r=>r.json())
+        .then(res=>{
+            (res.establecimientos||[]).forEach(e=>{
+                estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}" ${selectedEst==e.ID_ESTABLECIMIENTO?'selected':''}>${e.NOMBRE}</option>`;
+            });
+        });
+}
+
+function openScheduleModal(horario = null) {
+    document.getElementById('scheduleModal').classList.add('show');
+    document.getElementById('scheduleForm').reset();
+    if (horario) {
+        document.getElementById('scheduleModalTitle').textContent = "Editar Horario";
+        document.getElementById('modal_id_horario').value = horario.ID_HORARIO;
+        document.getElementById('modal_nombre').value = horario.NOMBRE;
+
+        // 1. Cargar sedes y seleccionar la sede correcta
+        fetch('api/get-sedes.php')
+            .then(r => r.json())
+            .then(res => {
+                const sedeSel = document.getElementById('modal_sede');
+                sedeSel.innerHTML = '<option value="">Seleccione sede</option>';
+                (res.sedes || []).forEach(s => {
+                    sedeSel.innerHTML += `<option value="${s.ID_SEDE}" ${s.ID_SEDE == horario.ID_SEDE ? 'selected' : ''}>${s.NOMBRE}</option>`;
+                });
+
+                // 2. Cargar establecimientos solo de esa sede y seleccionar el correcto
+                fetch('api/get-establecimientos.php?sede_id=' + encodeURIComponent(horario.ID_SEDE))
+                    .then(r2 => r2.json())
+                    .then(res2 => {
+                        const estSel = document.getElementById('modal_establecimiento');
+                        estSel.innerHTML = '<option value="">Seleccione establecimiento</option>';
+                        (res2.establecimientos || []).forEach(e => {
+                            estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}" ${e.ID_ESTABLECIMIENTO == horario.ID_ESTABLECIMIENTO ? 'selected' : ''}>${e.NOMBRE}</option>`;
+                        });
+                    });
+            });
+
+        document.getElementById('modal_hora_entrada').value = horario.HORA_ENTRADA;
+        document.getElementById('modal_hora_salida').value = horario.HORA_SALIDA;
+        renderDiasCheckboxes(horario.DIAS_ID);
+
+    } else {
+        document.getElementById('scheduleModalTitle').textContent = "Registrar Horario";
+        document.getElementById('modal_id_horario').value = '';
+        // Cargar sedes y limpiar establecimientos
+        fetch('api/get-sedes.php')
+            .then(r => r.json())
+            .then(res => {
+                const sedeSel = document.getElementById('modal_sede');
+                sedeSel.innerHTML = '<option value="">Seleccione sede</option>';
+                (res.sedes || []).forEach(s => {
+                    sedeSel.innerHTML += `<option value="${s.ID_SEDE}">${s.NOMBRE}</option>`;
+                });
+                document.getElementById('modal_establecimiento').innerHTML = '<option value="">Seleccione establecimiento</option>';
+            });
+        renderDiasCheckboxes([]);
+    }
+}
+document.getElementById('modal_sede').addEventListener('change', function() {
+    const sedeId = this.value;
+    fetch('api/get-establecimientos.php?sede_id=' + encodeURIComponent(sedeId))
+        .then(r => r.json())
+        .then(res => {
+            const estSel = document.getElementById('modal_establecimiento');
+            estSel.innerHTML = '<option value="">Seleccione establecimiento</option>';
+            (res.establecimientos || []).forEach(e => {
+                estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
+            });
+        });
+});
+function buscarSedeIdPorEstablecimiento(idEst) {
+    let est = establecimientosCache.find(e => e.ID_ESTABLECIMIENTO == idEst);
+    return est ? est.ID_SEDE : '';
+}
+window.closeScheduleModal = function() {
+    document.getElementById('scheduleModal').classList.remove('show');
+}
+
+// Guardar nuevo horario / editar horario
+document.getElementById('scheduleForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    // Enviar días seleccionados como array
+    const dias = [];
+    form.querySelectorAll('input[name="dias[]"]:checked').forEach(cb => dias.push(cb.value));
+    data.append('dias', JSON.stringify(dias));
+    let url = 'api/horario/' + (form.modal_id_horario.value ? 'update.php' : 'register.php');
+    let method = 'POST';
+    await fetch(url, { method, body: data })
+        .then(r=>r.json())
+        .then(async res=>{
+            if (res.success) {
+                await loadHorarios();
+                renderScheduleTable(horarios);
+                closeScheduleModal();
+            } else {
+                alert(res.message || "Error al guardar horario");
+            }
+        });
+});
+
+// -- Editar
+window.editarHorario = async function(id) {
+    let horario = horarios.find(h=>h.ID_HORARIO==id);
+    if (!horario) return;
+    openScheduleModal(horario);
+}
+
+// -- Eliminar (modal confirmación)
+let horarioAEliminar = null;
+window.eliminarHorario = function(id) {
+    horarioAEliminar = id;
+    document.getElementById('deleteScheduleModal').classList.add('show');
+};
+window.closeDeleteScheduleModal = function() {
+    document.getElementById('deleteScheduleModal').classList.remove('show');
+    horarioAEliminar = null;
+};
+document.getElementById('confirmDeleteScheduleBtn').addEventListener('click', async function() {
+    if (!horarioAEliminar) return;
+    await fetch('api/horario/delete.php', {
+        method: 'POST',
+        body: new URLSearchParams({id_horario: horarioAEliminar})
+    })
+    .then(r=>r.json())
+    .then(async res=>{
+        if(res.success){
+            await loadHorarios();
+            renderScheduleTable(horarios);
+        } else {
+            alert(res.message || "Error al eliminar horario");
+        }
+        closeDeleteScheduleModal();
+    });
+});
+
+// -- Cerrar modal al hacer click fuera
+document.addEventListener('mousedown', function(e) {
+    document.querySelectorAll('.modal.show').forEach(modal => {
+        if (e.target === modal) modal.classList.remove('show');
+    });
 });

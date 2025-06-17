@@ -60,20 +60,21 @@ class Layout {
     }
 
     updateDateTime() {
-        const now = new Date();
-        const dateTimeStr = this.formatUTCDateTime(now);
-        document.getElementById('currentDateTime').textContent = dateTimeStr;
-    }
-
-    formatUTCDateTime(date) {
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-        
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    const now = new Date();
+    // Opciones para mostrar fecha y hora en español de Colombia
+    const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone: 'America/Bogota'
+    };
+    // Formato: DD/MM/YYYY HH:MM:SS
+    const dateTimeStr = now.toLocaleString('es-CO', options).replace(',', '');
+    document.getElementById('currentDateTime').textContent = dateTimeStr;
     }
 }
 

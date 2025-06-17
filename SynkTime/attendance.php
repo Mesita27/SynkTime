@@ -1,3 +1,7 @@
+<?php
+require_once 'auth/session.php';
+requireAuth();
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -25,21 +29,31 @@
                     <i class="fas fa-plus"></i> Registrar Asistencia
                 </button>
             </div>
-            <?php include 'components/attendance_query.php'; ?>
+            <!-- Filtros de sede y establecimiento -->
+            <div class="attendance-filters" style="display:flex;gap:1em;margin-bottom:1em;">
+                <div>
+                    <label for="filtro_sede">Sede:</label>
+                    <select id="filtro_sede"></select>
+                </div>
+                <div>
+                    <label for="filtro_establecimiento">Establecimiento:</label>
+                    <select id="filtro_establecimiento"></select>
+                </div>
+            </div>
+            <!-- Tabla de asistencias -->
             <div class="attendance-table-container">
                 <table class="attendance-table">
                     <thead>
                         <tr>
                             <th>Código</th>
                             <th>Nombre</th>
-                            <th>Departamento</th>
+                            <th>Establecimiento</th>
                             <th>Sede</th>
                             <th>Fecha</th>
-                            <th>Hora entrada</th>
-                            <th>Hora salida</th>
-                            <th>Estado entrada</th>
-                            <th>Estado salida</th>
-                            <th>Acciones</th>
+                            <th>Horario</th>
+                            <th>Estado</th>
+                            <th>Foto</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="attendanceTableBody">
@@ -47,12 +61,11 @@
                     </tbody>
                 </table>
             </div>
-            <?php include 'components/attendance_modals.php'; ?>
+            <?php include 'components/attendance_register_modal.php'; ?>
+            <?php include 'components/attendance_photo_modal.php'; ?>
         </main>
     </div>
 </div>
-<!-- IMPORTANTE: primero employee.js, luego attendance.js -->
-<script src="assets/js/employee.js"></script>
 <script src="assets/js/attendance.js"></script>
 <script src="assets/js/layout.js"></script>
 </body>

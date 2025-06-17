@@ -6,38 +6,37 @@ SynkTime is a comprehensive attendance management system with a hierarchical str
 ## Estructura de directorios
 
 ```
-Synktime Frontend/
+Synktime/
+├── index.php               # Punto de entrada principal/redirección a login
+├── login.php               # Página de autenticación
+├── dashboard.php           # Panel principal post-autenticación
+├── logout.php              # Controlador de cierre de sesión
+├── employees.php           # Gestión de empleados
+├── attendance.php          # Registro y monitoreo de asistencias
+├── schedules.php           # Configuración de horarios
+├── reports.php             # Generación de reportes
 ├── assets/
 │   ├── css/
-│   │   ├── main.css
-│   │   ├── layout.css
-│   │   ├── header.css
-│   │   ├── empleados.css
-│   │   ├── attendance.css
-│   │   ├── horarios.css
-│   │   ├── reports.css
-│   │   └── styles.css
-│   ├── img/
+│   │   ├── main.css        # Estilos globales
+│   │   ├── login.css       # Estilos específicos para login
+│   │   └── ...
 │   ├── js/
-│   │   ├── layout.js
-│   │   ├── empleados.js
-│   │   ├── attendance.js
-│   │   ├── horarios.js
-│   │   └── reports.js
+│   │   ├── auth.js         # Lógica de autenticación
+│   │   └── ...
+│   └── img/
+│       ├── synktime-logo.png
+│       └── ...
 ├── components/
-│   ├── header.php
-│   └── sidebar.php
-├── components/
-│   ├── attendance_modals.php
-│   ├── attendance_query.php
-├── dashboard.php
-├── employees.php
-├── attendance.php
-├── schedules.php
-├── reports.php
-├── login.php
-├── logout.php
-└── index.php
+│   ├── header.php          # Componente de cabecera
+│   ├── sidebar.php         # Navegación lateral
+│   └── ...
+├── auth/
+│   ├── login-handler.php   # Procesamiento de autenticación
+│   ├── session.php         # Gestión de sesión
+│   └── ...
+└── config/
+    ├── database.php        # Configuración de conexión a BD
+    └── ...
 ```
 
 ## Descripción de módulos y componentes principales
