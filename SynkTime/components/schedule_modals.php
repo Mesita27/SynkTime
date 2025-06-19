@@ -26,6 +26,10 @@
                 <input type="time" id="modal_hora_salida" name="hora_salida" required>
             </div>
             <div class="form-group">
+                <label for="modal_tolerancia">Tolerancia (min)</label>
+                <input type="number" id="modal_tolerancia" name="tolerancia" min="0" value="0" required>
+            </div>
+            <div class="form-group">
                 <label>Días de la semana</label>
                 <div id="modal_dias" class="dias-checkboxes">
                     <!-- Se llenan dinámicamente -->

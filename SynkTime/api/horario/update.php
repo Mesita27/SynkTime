@@ -8,6 +8,7 @@ $id_establecimiento = $_POST['establecimiento'] ?? '';
 $hora_entrada = $_POST['hora_entrada'] ?? '';
 $hora_salida = $_POST['hora_salida'] ?? '';
 $dias = json_decode($_POST['dias'] ?? '[]', true);
+$tolerancia = isset($_POST['tolerancia']) ? intval($_POST['tolerancia']) : 0;
 
 if (!$id || !$nombre || !$id_establecimiento || !$hora_entrada || !$hora_salida || !is_array($dias) || !count($dias)) {
     echo json_encode(['success'=>false, 'message'=>'Faltan datos obligatorios']);
@@ -16,8 +17,8 @@ if (!$id || !$nombre || !$id_establecimiento || !$hora_entrada || !$hora_salida 
 
 $conn->beginTransaction();
 try {
-    $stmt = $conn->prepare("UPDATE horario SET NOMBRE=?, ID_ESTABLECIMIENTO=?, HORA_ENTRADA=?, HORA_SALIDA=? WHERE ID_HORARIO=?");
-    $stmt->execute([$nombre, $id_establecimiento, $hora_entrada, $hora_salida, $id]);
+    $stmt = $conn->prepare("UPDATE horario SET NOMBRE=?, ID_ESTABLECIMIENTO=?, HORA_ENTRADA=?, HORA_SALIDA=?, TOLERANCIA=? WHERE ID_HORARIO=?");
+    $stmt->execute([$nombre, $id_establecimiento, $hora_entrada, $hora_salida, $tolerancia, $id]);
     // Actualizar días: eliminar todos y volver a insertar
     $stmtDel = $conn->prepare("DELETE FROM horario_dia WHERE ID_HORARIO=?");
     $stmtDel->execute([$id]);

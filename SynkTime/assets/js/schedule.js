@@ -77,7 +77,7 @@ function renderScheduleTable(data) {
     const tbody = document.getElementById('scheduleTableBody');
     tbody.innerHTML = '';
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No se encontraron horarios</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No se encontraron horarios</td></tr>';
         return;
     }
     data.forEach(hor => {
@@ -90,6 +90,7 @@ function renderScheduleTable(data) {
                 <td>${(hor.DIAS || []).join(', ')}</td>
                 <td>${hor.HORA_ENTRADA}</td>
                 <td>${hor.HORA_SALIDA}</td>
+                <td>${hor.TOLERANCIA ?? 0}</td>
                 <td>
                     <button class="btn-icon btn-edit" title="Editar" onclick="editarHorario(${hor.ID_HORARIO})"><i class="fas fa-edit"></i></button>
                     <button class="btn-icon btn-delete" title="Eliminar" onclick="eliminarHorario(${hor.ID_HORARIO})"><i class="fas fa-trash"></i></button>
@@ -215,11 +216,13 @@ function openScheduleModal(horario = null) {
                     });
             });
 
+        document.getElementById('modal_tolerancia').value = horario.TOLERANCIA ?? 0;
         document.getElementById('modal_hora_entrada').value = horario.HORA_ENTRADA;
         document.getElementById('modal_hora_salida').value = horario.HORA_SALIDA;
         renderDiasCheckboxes(horario.DIAS_ID);
 
     } else {
+        document.getElementById('modal_tolerancia').value = 0;
         document.getElementById('scheduleModalTitle').textContent = "Registrar Horario";
         document.getElementById('modal_id_horario').value = '';
         // Cargar sedes y limpiar establecimientos

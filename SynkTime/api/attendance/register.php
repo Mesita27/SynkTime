@@ -17,9 +17,6 @@ $tipo = $_POST['tipo'] ?? null;
 $fecha = $_POST['fecha'] ?? date('Y-m-d');
 $foto_base64 = $_POST['foto_base64'] ?? null;
 
-// Log para debug (opcional - puedes eliminar después)
-error_log("Datos recibidos: ID=" . $id_empleado . ", TIPO=" . $tipo . ", FOTO=" . (empty($foto_base64) ? 'NO' : 'SÍ'));
-
 // Validación de datos obligatorios
 if (!$id_empleado || !$tipo) {
     echo json_encode(['success' => false, 'message' => 'Datos incompletos']);
@@ -56,14 +53,14 @@ if ($tipo === 'ENTRADA') {
 
     // Buscar horario asignado, que esté vigente en esa fecha y cubra ese día de semana
     $sqlHorario = "
-        SELECT h.HORA_ENTRADA
-        FROM empleado_horario eh
-        JOIN horario h ON h.ID_HORARIO = eh.ID_HORARIO
-        JOIN horario_dia hd ON hd.ID_HORARIO = h.ID_HORARIO
-        WHERE eh.ID_EMPLEADO = ?
-          AND hd.ID_DIA = ?
-          AND eh.FECHA_DESDE <= ?
-          AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= ?)
+        SELECT H.HORA_ENTRADA, H.TOLERANCIA
+        FROM EMPLEADO_HORARIO EH
+        JOIN HORARIO H ON H.ID_HORARIO = EH.ID_HORARIO
+        JOIN HORARIO_DIA HD ON HD.ID_HORARIO = H.ID_HORARIO
+        WHERE EH.ID_EMPLEADO = ?
+          AND HD.ID_DIA = ?
+          AND EH.FECHA_DESDE <= ?
+          AND (EH.FECHA_HASTA IS NULL OR EH.FECHA_HASTA >= ?)
         LIMIT 1
     ";
     $stmt = $conn->prepare($sqlHorario);
@@ -76,6 +73,7 @@ if ($tipo === 'ENTRADA') {
     }
 
     $hora_entrada_horario = $row['HORA_ENTRADA']; // formato HH:MM
+    $tolerancia = (int)($row['TOLERANCIA'] ?? 0);
 
     // Hora real de llegada (servidor)
     $hora_llegada = date('H:i');
@@ -85,17 +83,16 @@ if ($tipo === 'ENTRADA') {
     $ts_llegada = strtotime($fecha . ' ' . $hora_llegada);
     $diferencia_min = ($ts_llegada - $ts_horario) / 60;
 
-    // Estado según criterios
-    if ($diferencia_min < -10) {
-        $tardanza = "Temprano";
-    } elseif ($diferencia_min >= -10 && $diferencia_min <= 10) {
-        $tardanza = "A tiempo";
+    // Estado según criterios de tolerancia real
+    if ($ts_llegada < $ts_horario) {
+        $tardanza = "N"; // Temprano (pero no cuenta como tardanza)
+    } elseif ($ts_llegada <= $ts_horario + $tolerancia * 60) {
+        $tardanza = "N"; // Puntual
     } else {
-        $tardanza = "Tardía";
+        $tardanza = "S"; // Tardanza
     }
 
-    // Verificar el nombre exacto de la tabla y columnas
-    $sql = "INSERT INTO asistencia 
+    $sql = "INSERT INTO ASISTENCIA 
         (ID_EMPLEADO, FECHA, TIPO, HORA, TARDANZA, OBSERVACION, FOTO, REGISTRO_MANUAL)
         VALUES (?, ?, 'ENTRADA', ?, ?, NULL, ?, 'N')";
     
@@ -111,17 +108,11 @@ if ($tipo === 'ENTRADA') {
                 'tardanza' => $tardanza
             ]);
         } else {
-            // Si falla el insert, eliminar la foto
-            if (file_exists($save_path)) {
-                unlink($save_path);
-            }
+            if (file_exists($save_path)) unlink($save_path);
             echo json_encode(['success' => false, 'message' => 'No se pudo registrar la entrada en la base de datos.']);
         }
     } catch (PDOException $e) {
-        // Si falla el insert, eliminar la foto
-        if (file_exists($save_path)) {
-            unlink($save_path);
-        }
+        if (file_exists($save_path)) unlink($save_path);
         error_log("Error SQL: " . $e->getMessage());
         echo json_encode(['success' => false, 'message' => 'Error en la base de datos: ' . $e->getMessage()]);
     }
@@ -131,7 +122,7 @@ if ($tipo === 'ENTRADA') {
 // ========== REGISTRO DE SALIDA ==========
 if ($tipo === 'SALIDA') {
     // Validar que no exista ya salida para ese día
-    $sql_check = "SELECT COUNT(*) FROM asistencia WHERE ID_EMPLEADO = ? AND FECHA = ? AND TIPO = 'SALIDA'";
+    $sql_check = "SELECT COUNT(*) FROM ASISTENCIA WHERE ID_EMPLEADO = ? AND FECHA = ? AND TIPO = 'SALIDA'";
     $stmt = $conn->prepare($sql_check);
     $stmt->execute([$id_empleado, $fecha]);
     if ($stmt->fetchColumn() > 0) {
@@ -139,16 +130,12 @@ if ($tipo === 'SALIDA') {
         exit;
     }
 
-    // Variable para almacenar el nombre del archivo de foto (puede ser null)
     $filename = null;
-    
-    // Si se proporciona foto para la salida, procesarla
     if ($foto_base64) {
         $filename = 'salida_' . $id_empleado . '_' . date('Ymd_His') . '.jpg';
         $save_path = $uploads_dir . $filename;
         $foto_base64_clean = preg_replace('#^data:image/\w+;base64,#i', '', $foto_base64);
         $img_data = base64_decode($foto_base64_clean);
-        
         if ($img_data === false || file_put_contents($save_path, $img_data) === false) {
             echo json_encode(['success' => false, 'message' => 'No se pudo guardar la foto de salida.']);
             exit;
@@ -158,14 +145,14 @@ if ($tipo === 'SALIDA') {
     // Buscar horario asignado, que esté vigente y cubra ese día de semana
     $dia_semana = date('N', strtotime($fecha));
     $sqlHorario = "
-        SELECT h.HORA_SALIDA
-        FROM empleado_horario eh
-        JOIN horario h ON h.ID_HORARIO = eh.ID_HORARIO
-        JOIN horario_dia hd ON hd.ID_HORARIO = h.ID_HORARIO
-        WHERE eh.ID_EMPLEADO = ?
-          AND hd.ID_DIA = ?
-          AND eh.FECHA_DESDE <= ?
-          AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= ?)
+        SELECT H.HORA_SALIDA, H.TOLERANCIA
+        FROM EMPLEADO_HORARIO EH
+        JOIN HORARIO H ON H.ID_HORARIO = EH.ID_HORARIO
+        JOIN HORARIO_DIA HD ON HD.ID_HORARIO = H.ID_HORARIO
+        WHERE EH.ID_EMPLEADO = ?
+          AND HD.ID_DIA = ?
+          AND EH.FECHA_DESDE <= ?
+          AND (EH.FECHA_HASTA IS NULL OR EH.FECHA_HASTA >= ?)
         LIMIT 1
     ";
     $stmt = $conn->prepare($sqlHorario);
@@ -178,6 +165,7 @@ if ($tipo === 'SALIDA') {
     }
 
     $hora_salida_horario = $row['HORA_SALIDA']; // formato HH:MM
+    $tolerancia = (int)($row['TOLERANCIA'] ?? 0);
 
     // Hora real de salida (servidor)
     $hora_salida = date('H:i');
@@ -187,29 +175,25 @@ if ($tipo === 'SALIDA') {
     $ts_salida = strtotime($fecha . ' ' . $hora_salida);
     $diferencia_min = ($ts_salida - $ts_horario) / 60;
 
-    // Estado para salida: Temprano = más de 10 min antes, A tiempo = ±10 min, Tardío = más de 10 min después
-    if ($diferencia_min < -10) {
-        $tardanza = "Temprano";
-    } elseif ($diferencia_min >= -10 && $diferencia_min <= 10) {
-        $tardanza = "A tiempo";
+    // Estado salida: Temprano, Puntual, Tarde con tolerancia
+    if ($ts_salida < $ts_horario - $tolerancia * 60) {
+        $tardanza = "S"; // salida muy temprano
+    } elseif ($ts_salida <= $ts_horario + $tolerancia * 60) {
+        $tardanza = "N"; // salida a tiempo
     } else {
-        $tardanza = "Tardía";
+        $tardanza = "S"; // salida tarde
     }
 
-    // Inserta la asistencia (salida) CON FOTO (puede ser NULL)
-    $sql = "INSERT INTO asistencia 
+    $sql = "INSERT INTO ASISTENCIA 
         (ID_EMPLEADO, FECHA, TIPO, HORA, TARDANZA, OBSERVACION, FOTO, REGISTRO_MANUAL)
         VALUES (?, ?, 'SALIDA', ?, ?, NULL, ?, 'N')";
     
     try {
         $stmt = $conn->prepare($sql);
         $ok = $stmt->execute([$id_empleado, $fecha, $hora_salida, $tardanza, $filename]);
-        
         if ($ok) {
             $response = ['success' => true, 'message' => 'Salida registrada correctamente'];
-            if ($filename) {
-                $response['foto_guardada'] = $filename;
-            }
+            if ($filename) $response['foto_guardada'] = $filename;
             echo json_encode($response);
         } else {
             echo json_encode(['success' => false, 'message' => 'No se pudo registrar la salida.']);

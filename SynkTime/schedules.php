@@ -37,6 +37,7 @@
                             <th>Días</th>
                             <th>Hora entrada</th>
                             <th>Hora salida</th>
+                            <th>Tolerancia (min)</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>

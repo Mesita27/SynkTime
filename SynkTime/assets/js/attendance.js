@@ -2,7 +2,7 @@
 async function cargarFiltros() {
     let sedes = await fetch('api/get-sedes.php').then(r => r.json());
     let sedeSel = document.getElementById('filtro_sede');
-    sedeSel.innerHTML = '';
+    sedeSel.innerHTML = '<option value="">Todos</option>'; // <-- AGREGADO: opción Todos
     sedes.sedes.forEach(s => {
         sedeSel.innerHTML += `<option value="${s.ID_SEDE}">${s.NOMBRE}</option>`;
     });
@@ -12,23 +12,40 @@ async function cargarFiltros() {
 async function cargarEstablecimientosFiltro2() {
     let sedeId = document.getElementById('filtro_sede').value;
     let estSel = document.getElementById('filtro_establecimiento');
-    estSel.innerHTML = '';
+    estSel.innerHTML = '<option value="">Todos</option>'; // <-- AGREGADO: opción Todos
     let url = 'api/get-establecimientos.php';
     if (sedeId) url += '?sede_id=' + encodeURIComponent(sedeId);
     let res = await fetch(url).then(r => r.json());
-    estSel.innerHTML = '';
-    res.establecimientos.forEach(e => {
-        estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
-    });
+    if (res.establecimientos) {
+        res.establecimientos.forEach(e => {
+            estSel.innerHTML += `<option value="${e.ID_ESTABLECIMIENTO}">${e.NOMBRE}</option>`;
+        });
+    }
     loadAttendanceDay();
 }
-document.addEventListener('DOMContentLoaded', cargarFiltros);
+// Recargar empleados al buscar por código en el modal
+document.addEventListener('DOMContentLoaded', function() {
+    cargarFiltros();
+    const btnBuscarCodigoRegistro = document.getElementById('btnBuscarCodigoRegistro');
+    const codigoRegistroBusqueda = document.getElementById('codigoRegistroBusqueda');
+    if (btnBuscarCodigoRegistro && codigoRegistroBusqueda) {
+        btnBuscarCodigoRegistro.onclick = cargarEmpleadosParaRegistro;
+        codigoRegistroBusqueda.addEventListener('keyup', function(e) {
+            if (e.key === "Enter") cargarEmpleadosParaRegistro();
+        });
+    }
+});
 
 // =========== TABLA PRINCIPAL ASISTENCIAS ===========
 function loadAttendanceDay() {
     const sede = document.getElementById('filtro_sede').value;
     const establecimiento = document.getElementById('filtro_establecimiento').value;
-    let url = `api/attendance/list-day.php?sede=${sede}&establecimiento=${establecimiento}`;
+    const codigo = document.getElementById('codigoBusqueda') ? document.getElementById('codigoBusqueda').value.trim() : '';
+    let url = `api/attendance/list-day.php?`;
+    if (sede) url += `sede=${encodeURIComponent(sede)}&`;
+    if (establecimiento) url += `establecimiento=${encodeURIComponent(establecimiento)}&`;
+    if (codigo) url += `codigo=${encodeURIComponent(codigo)}&`;
+
     fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -117,15 +134,16 @@ async function cargarEstablecimientosRegistro() {
 async function cargarEmpleadosParaRegistro() {
     const sede = document.getElementById('reg_sede').value;
     const establecimiento = document.getElementById('reg_establecimiento').value;
+    const codigo = document.getElementById('codigoRegistroBusqueda') ? document.getElementById('codigoRegistroBusqueda').value.trim() : "";
     const tbody = document.getElementById('attendanceRegisterTableBody');
 
-    if (!sede || !establecimiento) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Seleccione sede y establecimiento</td></tr>`;
-        return;
-    }
+    // Permitir "Todos" en ambos filtros (value vacío)
+    let url = `api/employee/list.php?`;
+    if (sede) url += `sede=${encodeURIComponent(sede)}&`;
+    if (establecimiento) url += `establecimiento=${encodeURIComponent(establecimiento)}&`;
+    if (codigo) url += `codigo=${encodeURIComponent(codigo)}&`;
 
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando empleados...</td></tr>';
-    let url = `api/employee/list.php?sede=${sede}&establecimiento=${establecimiento}`;
     let res = await fetch(url).then(r => r.json());
     tbody.innerHTML = '';
     if (!res.data || !res.data.length) {

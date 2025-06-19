@@ -3,7 +3,7 @@
 $host = 'localhost';
 $dbname = 'synktime';
 $username = 'root';
-$password = '';
+$password = 'Miau$210718';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);

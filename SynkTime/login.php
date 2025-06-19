@@ -30,8 +30,6 @@ if (isAuthenticated()) {
         <div class="login-card">
             <div class="login-logo">
                 <img src="assets/img/synktime-logo.png" alt="SynkTime Logo">
-                <h2>SynkTime</h2>
-                <p class="tagline">Sincroniza, Controla y Optimiza Tu Tiempo Laboral</p>
             </div>
             <form id="loginForm" autocomplete="off">
                 <div class="form-group">

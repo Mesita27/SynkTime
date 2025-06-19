@@ -1,87 +1,72 @@
 <?php
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *'); 
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Incluir la conexión a la base de datos y controlador
 require_once '../config/database.php';
 require_once '../dashboard-controller.php';
 
-// Verificar que se reciba el parámetro establecimiento_id
-if (!isset($_GET['establecimiento_id']) || empty($_GET['establecimiento_id'])) {
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'error' => 'ID de establecimiento requerido'
-    ]);
+session_start();
+$empresaId = $_SESSION['id_empresa'] ?? null;
+
+if (!$empresaId) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Sesión expirada']);
     exit;
 }
 
-$establecimientoId = (int)$_GET['establecimiento_id'];
+// Parámetros para los niveles
+$establecimientoId = !empty($_GET['establecimiento_id']) ? intval($_GET['establecimiento_id']) : null;
+$sedeId = !empty($_GET['sede_id']) ? intval($_GET['sede_id']) : null;
+$fecha = isset($_GET['fecha']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha']) ? $_GET['fecha'] : date('Y-m-d');
 
-// Obtener fecha desde parámetros o usar fecha actual
-$fecha = isset($_GET['fecha']) ? $_GET['fecha'] : date('Y-m-d');
-
-// Validar formato de fecha
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Formato de fecha inválido. Use YYYY-MM-DD'
-    ]);
-    exit;
+// Lógica jerárquica: establecimiento > sede > empresa
+if ($establecimientoId) {
+    $nivel = 'establecimiento';
+    $id = $establecimientoId;
+} elseif ($sedeId) {
+    $nivel = 'sede';
+    $id = $sedeId;
+} else {
+    $nivel = 'empresa';
+    $id = $empresaId;
 }
 
 try {
-    // Obtener ID de empresa del establecimiento
-    $stmt = $conn->prepare("
-        SELECT s.ID_EMPRESA 
-        FROM ESTABLECIMIENTO e
-        JOIN SEDE s ON e.ID_SEDE = s.ID_SEDE
-        WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
-    ");
-    $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-    $stmt->execute();
-    $empresaData = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$empresaData) {
-        http_response_code(404);
-        echo json_encode([
-            'success' => false,
-            'error' => 'Establecimiento no encontrado'
-        ]);
-        exit;
+    // Estadísticas generales
+    $estadisticas = getEstadisticasAsistencia($nivel, $id, $fecha);
+
+    // Gráficos por nivel
+    if ($nivel === 'empresa') {
+        $asistenciasPorHora = getAsistenciasPorHora($id, $fecha);
+        $distribucionAsistencias = getDistribucionAsistencias($id, $fecha);
+        $actividadReciente = getActividadReciente($id, $fecha);
+    } elseif ($nivel === 'sede') {
+        $asistenciasPorHora = getAsistenciasPorHoraSede($id, $fecha);
+        $distribucionAsistencias = getDistribucionAsistenciasSede($id, $fecha);
+        $actividadReciente = getActividadRecienteSede($id, $fecha);
+    } else { // establecimiento
+        $asistenciasPorHora = getAsistenciasPorHoraEstablecimiento($id, $fecha);
+        $distribucionAsistencias = getDistribucionAsistenciasEstablecimiento($id, $fecha);
+        $actividadReciente = getActividadRecienteEstablecimiento($id, $fecha);
     }
-    
-    $empresaId = $empresaData['ID_EMPRESA'];
-    
-    // Obtener estadísticas del establecimiento
-    $estadisticas = getEstadisticasAsistencia($establecimientoId, $fecha);
-    
-    // Obtener datos para gráficos (nivel empresa para contexto)
-    $asistenciasPorHora = getAsistenciasPorHoraEstablecimiento($establecimientoId, $fecha);
-    $distribucionAsistencias = getDistribucionAsistenciasEstablecimiento($establecimientoId, $fecha);
-    
-    // Obtener actividad reciente del establecimiento
-    $actividadReciente = getActividadRecienteEstablecimiento($establecimientoId, $fecha);
-    
+
     echo json_encode([
         'success' => true,
-        'establecimiento_id' => $establecimientoId,
+        'nivel' => $nivel,
+        'id' => $id,
         'fecha' => $fecha,
         'estadisticas' => $estadisticas,
         'asistenciasPorHora' => $asistenciasPorHora,
         'distribucionAsistencias' => $distribucionAsistencias,
         'actividadReciente' => $actividadReciente
     ]);
-    
-} catch (PDOException $e) {
-    error_log("Error al obtener estadísticas del dashboard: " . $e->getMessage());
+} catch (Exception $e) {
+    error_log("Error en get-dashboard-stats.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'error' => 'Error interno del servidor'
     ]);
 }
-?>

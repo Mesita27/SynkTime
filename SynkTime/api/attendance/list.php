@@ -1,109 +1,95 @@
 <?php
-require_once '../../auth/session.php';
+require_once __DIR__ . '/../../auth/session.php';
 requireAuth();
-require_once '../../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
+
+header('Content-Type: application/json');
 
 $empresaId = $_SESSION['id_empresa'];
-
-// 1. Obtener todos los IDs de establecimientos de la empresa
-$stmt = $conn->prepare("
-    SELECT est.ID_ESTABLECIMIENTO, s.ID_SEDE, s.NOMBRE as nombre_sede
-    FROM ESTABLECIMIENTO est
-    JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-    WHERE s.ID_EMPRESA = :empresaId AND est.ESTADO = 'A'
-");
-$stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
-$stmt->execute();
-$establecimientos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$idsEstablecimientos = array_column($establecimientos, 'ID_ESTABLECIMIENTO');
-
-// Si no hay establecimientos se retorna vacío
-if (empty($idsEstablecimientos)) {
-    echo json_encode(['success' => true, 'horarios' => []]);
-    exit;
-}
-
-// Filtros GET
-$filtros = [
-    'id_horario' => $_GET['id_horario'] ?? null,
-    'nombre' => $_GET['nombre'] ?? null,
-    'establecimiento' => $_GET['establecimiento'] ?? null,
-    'hora_entrada' => $_GET['hora_entrada'] ?? null,
-    'hora_salida' => $_GET['hora_salida'] ?? null,
-    'dia' => $_GET['dia'] ?? null
-];
-
-$where = [];
 $params = [];
+$where = [];
 
-$where[] = "h.ID_ESTABLECIMIENTO IN (" . implode(",", array_fill(0, count($idsEstablecimientos), "?")) . ")";
-$params = array_merge($params, $idsEstablecimientos);
+$sql = "SELECT 
+    a.ID_ASISTENCIA, a.ID_EMPLEADO, a.FECHA, a.TIPO, a.HORA, a.TARDANZA, a.OBSERVACION,
+    e.ID_EMPLEADO as codigo, e.NOMBRE, e.APELLIDO, est.NOMBRE as establecimiento, s.NOMBRE as sede,
+    h.HORA_ENTRADA, h.TOLERANCIA
+FROM ASISTENCIA a
+JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO 
+    AND eh.FECHA_DESDE <= a.FECHA AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= a.FECHA)
+LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
+WHERE s.ID_EMPRESA = ? AND a.TIPO='ENTRADA'";
+$params[] = $empresaId;
 
-if ($filtros['id_horario']) {
-    $where[] = "h.ID_HORARIO = ?";
-    $params[] = $filtros['id_horario'];
+// Filtros (puedes agregar los tuyos)
+if (!empty($_GET['codigo'])) {
+    $sql .= " AND e.ID_EMPLEADO = ?";
+    $params[] = $_GET['codigo'];
 }
-if ($filtros['nombre']) {
-    $where[] = "h.NOMBRE LIKE ?";
-    $params[] = '%' . $filtros['nombre'] . '%';
+if (!empty($_GET['nombre'])) {
+    $sql .= " AND (e.NOMBRE LIKE ? OR e.APELLIDO LIKE ?)";
+    $params[] = '%' . $_GET['nombre'] . '%';
+    $params[] = '%' . $_GET['nombre'] . '%';
 }
-if ($filtros['establecimiento']) {
-    $where[] = "h.ID_ESTABLECIMIENTO = ?";
-    $params[] = $filtros['establecimiento'];
+if (!empty($_GET['sede'])) {
+    $sql .= " AND s.ID_SEDE = ?";
+    $params[] = $_GET['sede'];
 }
-if ($filtros['hora_entrada']) {
-    $where[] = "h.HORA_ENTRADA = ?";
-    $params[] = $filtros['hora_entrada'];
+if (!empty($_GET['establecimiento'])) {
+    $sql .= " AND est.ID_ESTABLECIMIENTO = ?";
+    $params[] = $_GET['establecimiento'];
 }
-if ($filtros['hora_salida']) {
-    $where[] = "h.HORA_SALIDA = ?";
-    $params[] = $filtros['hora_salida'];
+if (!empty($_GET['estado'])) {
+    // El filtro de estado se hará luego, ya que ahora se calcula en PHP
 }
-if ($filtros['dia']) {
-    $where[] = "hd.ID_DIA = ?";
-    $params[] = $filtros['dia'];
+if (!empty($_GET['fecha_desde']) && !empty($_GET['fecha_hasta'])) {
+    $sql .= " AND a.FECHA BETWEEN ? AND ?";
+    $params[] = $_GET['fecha_desde'];
+    $params[] = $_GET['fecha_hasta'];
 }
 
-$sql = "
-SELECT 
-    h.ID_HORARIO,
-    h.NOMBRE,
-    h.HORA_ENTRADA,
-    h.HORA_SALIDA,
-    h.ID_ESTABLECIMIENTO,
-    est.NOMBRE AS ESTABLECIMIENTO,
-    s.ID_SEDE,
-    s.NOMBRE AS SEDE
-FROM HORARIO h
-INNER JOIN ESTABLECIMIENTO est ON est.ID_ESTABLECIMIENTO = h.ID_ESTABLECIMIENTO
-INNER JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-" . (!empty($filtros['dia']) ? "INNER JOIN HORARIO_DIA hd ON hd.ID_HORARIO = h.ID_HORARIO" : "") . "
-WHERE " . implode(' AND ', $where) . "
-ORDER BY h.ID_HORARIO DESC
-";
+$sql .= " ORDER BY a.FECHA DESC, a.HORA ASC";
 
 $stmt = $conn->prepare($sql);
-foreach ($params as $i => $val) {
-    $stmt->bindValue($i + 1, $val);
-}
-$stmt->execute();
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->execute($params);
 
-// Obtener días para cada horario
-foreach ($rows as &$row) {
-    $stmt2 = $conn->prepare("
-        SELECT d.ID_DIA, d.NOMBRE
-        FROM HORARIO_DIA hd
-        JOIN DIA_SEMANA d ON d.ID_DIA = hd.ID_DIA
-        WHERE hd.ID_HORARIO = ?
-        ORDER BY d.ID_DIA
-    ");
-    $stmt2->execute([$row['ID_HORARIO']]);
-    $dias = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-    $row['DIAS'] = array_column($dias, 'NOMBRE');
-    $row['DIAS_ID'] = array_column($dias, 'ID_DIA');
-}
-unset($row);
+$data = [];
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    // Calcula el estado usando tolerancia real
+    $estado = 'Puntual';
+    if ($row['HORA_ENTRADA']) {
+        $hora_entrada = $row['HORA_ENTRADA'];
+        $tolerancia = (int)($row['TOLERANCIA'] ?? 0);
+        $hora_real = $row['HORA'];
 
-echo json_encode(['success'=>true, 'horarios'=>$rows]);
+        $entrada_min = strtotime($row['FECHA'] . ' ' . $hora_entrada);
+        $real_min = strtotime($row['FECHA'] . ' ' . $hora_real);
+
+        if ($real_min < $entrada_min) {
+            $estado = 'Temprano';
+        } elseif ($real_min <= $entrada_min + $tolerancia * 60) {
+            $estado = 'Puntual';
+        } else {
+            $estado = 'Tardanza';
+        }
+    }
+    // Filtrado por estado si corresponde
+    if (!empty($_GET['estado']) && strtolower($_GET['estado']) !== strtolower($estado)) {
+        continue;
+    }
+
+    $data[] = [
+        'id' => $row['ID_ASISTENCIA'],
+        'codigo' => $row['codigo'],
+        'nombre' => $row['NOMBRE'] . ' ' . $row['APELLIDO'],
+        'sede' => $row['sede'],
+        'establecimiento' => $row['establecimiento'],
+        'fecha' => $row['FECHA'],
+        'hora_entrada' => $row['HORA'],
+        'estado_entrada' => $estado,
+        'observacion' => $row['OBSERVACION']
+    ];
+}
+echo json_encode(['success' => true, 'data' => $data]);

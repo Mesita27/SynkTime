@@ -7,6 +7,7 @@ $id_establecimiento = $_POST['establecimiento'] ?? '';
 $hora_entrada = $_POST['hora_entrada'] ?? '';
 $hora_salida = $_POST['hora_salida'] ?? '';
 $dias = json_decode($_POST['dias'] ?? '[]', true);
+$tolerancia = isset($_POST['tolerancia']) ? intval($_POST['tolerancia']) : 0;
 
 if (!$nombre || !$id_establecimiento || !$hora_entrada || !$hora_salida || !is_array($dias) || !count($dias)) {
     echo json_encode(['success'=>false, 'message'=>'Faltan datos obligatorios']);
@@ -15,8 +16,8 @@ if (!$nombre || !$id_establecimiento || !$hora_entrada || !$hora_salida || !is_a
 
 $conn->beginTransaction();
 try {
-    $stmt = $conn->prepare("INSERT INTO horario (NOMBRE, ID_ESTABLECIMIENTO, HORA_ENTRADA, HORA_SALIDA) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$nombre, $id_establecimiento, $hora_entrada, $hora_salida]);
+    $stmt = $conn->prepare("INSERT INTO horario (NOMBRE, ID_ESTABLECIMIENTO, HORA_ENTRADA, HORA_SALIDA, TOLERANCIA) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$nombre, $id_establecimiento, $hora_entrada, $hora_salida, $tolerancia]);
     $id_horario = $conn->lastInsertId();
 
     $stmtDia = $conn->prepare("INSERT INTO horario_dia (ID_HORARIO, ID_DIA) VALUES (?, ?)");

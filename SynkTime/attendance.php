@@ -29,8 +29,8 @@ requireAuth();
                     <i class="fas fa-plus"></i> Registrar Asistencia
                 </button>
             </div>
-            <!-- Filtros de sede y establecimiento -->
-            <div class="attendance-filters" style="display:flex;gap:1em;margin-bottom:1em;">
+            <!-- Filtros de sede y establecimiento y búsqueda por código -->
+            <div class="attendance-filters" style="display:flex;gap:1em;flex-wrap:wrap;margin-bottom:1em;">
                 <div>
                     <label for="filtro_sede">Sede:</label>
                     <select id="filtro_sede"></select>
@@ -38,6 +38,12 @@ requireAuth();
                 <div>
                     <label for="filtro_establecimiento">Establecimiento:</label>
                     <select id="filtro_establecimiento"></select>
+                </div>
+                <div style="align-self:flex-end;">
+                    <input type="text" id="codigoBusqueda" class="filter-input" placeholder="Buscar por código de empleado...">
+                    <button id="btnBuscarCodigo" class="btn-primary" style="margin-left:.5em;">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
                 </div>
             </div>
             <!-- Tabla de asistencias -->
