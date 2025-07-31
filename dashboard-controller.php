@@ -289,86 +289,149 @@ function getAsistenciasPorHoraEstablecimiento($establecimientoId, $fecha) {
  */
 
 
-// SEDE: [A tiempo, Tardanzas, Faltas]
+// SEDE: [Tempranos, A tiempo, Tardanzas, Faltas]
 function getDistribucionAsistenciasSede($sedeId, $fecha) {
     global $conn;
-    $stmt = $conn->prepare("
-        SELECT 
-            SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tiempo,
-            SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde
-        FROM EMPLEADO e
-        JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-        LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha
-        WHERE est.ID_SEDE = :sedeId
-          AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
-    ");
-    $stmt->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
-    $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
-    $stmt->execute();
-    $res = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    $stmt2 = $conn->prepare("
-        SELECT COUNT(e.ID_EMPLEADO) as faltas
-        FROM EMPLEADO e
-        JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-        LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO 
-            AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
-        WHERE est.ID_SEDE = :sedeId
-          AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
-          AND a.ID_ASISTENCIA IS NULL
-    ");
-    $stmt2->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
-    $stmt2->bindParam(':fecha', $fecha, PDO::PARAM_STR);
-    $stmt2->execute();
-    $faltas = $stmt2->fetch(PDO::FETCH_ASSOC)['faltas'] ?? 0;
-
-    return [
-        'series' => [
-            (int)$res['llegadas_tiempo'],
-            (int)$res['llegadas_tarde'],
-            (int)$faltas
-        ]
-    ];
+    
+    try {
+        // Get early arrivals, on-time arrivals, and late arrivals for sede
+        $stmt = $conn->prepare("
+            SELECT 
+                e.ID_EMPLEADO,
+                a.HORA as entrada_hora,
+                a.TARDANZA,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
+            FROM EMPLEADO e
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
+            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
+                AND eh.FECHA_DESDE <= :fecha
+                AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
+            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
+            WHERE est.ID_SEDE = :sedeId
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
+        ");
+        
+        $stmt->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $llegadas_temprano = 0;
+        $llegadas_tiempo = 0;
+        $llegadas_tarde = 0;
+        $faltas = 0;
+        
+        foreach ($empleados as $emp) {
+            if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
+                $faltas++;
+            } else {
+                $hEntrada = $emp['HORA_ENTRADA'];
+                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
+                $hReal = $emp['entrada_hora'];
+                $entradaMin = strtotime($fecha . ' ' . $hEntrada);
+                $realMin = strtotime($fecha . ' ' . $hReal);
+                
+                if ($realMin < $entradaMin) {
+                    $llegadas_temprano++;
+                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                    $llegadas_tiempo++;
+                } else {
+                    $llegadas_tarde++;
+                }
+            }
+        }
+        
+        return [
+            'series' => [
+                $llegadas_temprano,
+                $llegadas_tiempo,
+                $llegadas_tarde,
+                $faltas
+            ]
+        ];
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener distribución de asistencias de sede: " . $e->getMessage());
+        return [
+            'series' => [0, 0, 0, 0]
+        ];
+    }
 }
 
-// ESTABLECIMIENTO: [A tiempo, Tardanzas, Faltas]
+// ESTABLECIMIENTO: [Tempranos, A tiempo, Tardanzas, Faltas]
 function getDistribucionAsistenciasEstablecimiento($establecimientoId, $fecha) {
     global $conn;
-    $stmt = $conn->prepare("
-        SELECT 
-            SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tiempo,
-            SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde
-        FROM EMPLEADO e
-        LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha
-        WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
-          AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
-    ");
-    $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-    $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
-    $stmt->execute();
-    $res = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    $stmt2 = $conn->prepare("
-        SELECT COUNT(e.ID_EMPLEADO) as faltas
-        FROM EMPLEADO e
-        LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO 
-            AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
-        WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
-          AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
-          AND a.ID_ASISTENCIA IS NULL
-    ");
-    $stmt2->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
-    $stmt2->bindParam(':fecha', $fecha, PDO::PARAM_STR);
-    $stmt2->execute();
-    $faltas = $stmt2->fetch(PDO::FETCH_ASSOC)['faltas'] ?? 0;
-
-    return [
-        'series' => [
-            (int)$res['llegadas_tiempo'],
-            (int)$res['llegadas_tarde'],
-            (int)$faltas
-        ]
-    ];
+    
+    try {
+        // Get early arrivals, on-time arrivals, and late arrivals for establecimiento
+        $stmt = $conn->prepare("
+            SELECT 
+                e.ID_EMPLEADO,
+                a.HORA as entrada_hora,
+                a.TARDANZA,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
+            FROM EMPLEADO e
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
+            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
+                AND eh.FECHA_DESDE <= :fecha
+                AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
+            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
+        ");
+        
+        $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $llegadas_temprano = 0;
+        $llegadas_tiempo = 0;
+        $llegadas_tarde = 0;
+        $faltas = 0;
+        
+        foreach ($empleados as $emp) {
+            if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
+                $faltas++;
+            } else {
+                $hEntrada = $emp['HORA_ENTRADA'];
+                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
+                $hReal = $emp['entrada_hora'];
+                $entradaMin = strtotime($fecha . ' ' . $hEntrada);
+                $realMin = strtotime($fecha . ' ' . $hReal);
+                
+                if ($realMin < $entradaMin) {
+                    $llegadas_temprano++;
+                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                    $llegadas_tiempo++;
+                } else {
+                    $llegadas_tarde++;
+                }
+            }
+        }
+        
+        return [
+            'series' => [
+                $llegadas_temprano,
+                $llegadas_tiempo,
+                $llegadas_tarde,
+                $faltas
+            ]
+        ];
+        
+    } catch (PDOException $e) {
+        error_log("Error al obtener distribución de asistencias de establecimiento: " . $e->getMessage());
+        return [
+            'series' => [0, 0, 0, 0]
+        ];
+    }
 }
 
 /**
@@ -448,16 +511,22 @@ function getDistribucionAsistencias($empresaId, $fecha) {
     global $conn;
     
     try {
-        // Consulta para obtener el total de empleados, asistencias a tiempo y tardanzas
+        // Get early arrivals, on-time arrivals, and late arrivals
         $stmt = $conn->prepare("
             SELECT 
-                COUNT(DISTINCT e.ID_EMPLEADO) as total_empleados,
-                SUM(CASE WHEN a.TARDANZA = 'N' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tiempo,
-                SUM(CASE WHEN a.TARDANZA = 'S' AND a.TIPO = 'ENTRADA' THEN 1 ELSE 0 END) as llegadas_tarde
+                e.ID_EMPLEADO,
+                a.HORA as entrada_hora,
+                a.TARDANZA,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
             FROM EMPLEADO e
             JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
             JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha
+            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
+            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
+                AND eh.FECHA_DESDE <= :fecha
+                AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
+            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
             WHERE s.ID_EMPRESA = :empresaId
             AND e.ESTADO = 'A'
             AND e.ACTIVO = 'S'
@@ -467,40 +536,46 @@ function getDistribucionAsistencias($empresaId, $fecha) {
         $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->execute();
         
-        $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Consulta para calcular las faltas (empleados sin registro de entrada en la fecha)
-        $stmt = $conn->prepare("
-            SELECT COUNT(e.ID_EMPLEADO) as faltas
-            FROM EMPLEADO e
-            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO 
-                AND a.FECHA = :fecha 
-                AND a.TIPO = 'ENTRADA'
-            WHERE s.ID_EMPRESA = :empresaId 
-            AND e.ESTADO = 'A' 
-            AND e.ACTIVO = 'S'
-            AND a.ID_ASISTENCIA IS NULL
-        ");
+        $llegadas_temprano = 0;
+        $llegadas_tiempo = 0;
+        $llegadas_tarde = 0;
+        $faltas = 0;
         
-        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
-        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
-        $stmt->execute();
-        $faltasResult = $stmt->fetch(PDO::FETCH_ASSOC);
+        foreach ($empleados as $emp) {
+            if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
+                $faltas++;
+            } else {
+                $hEntrada = $emp['HORA_ENTRADA'];
+                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
+                $hReal = $emp['entrada_hora'];
+                $entradaMin = strtotime($fecha . ' ' . $hEntrada);
+                $realMin = strtotime($fecha . ' ' . $hReal);
+                
+                if ($realMin < $entradaMin) {
+                    $llegadas_temprano++;
+                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                    $llegadas_tiempo++;
+                } else {
+                    $llegadas_tarde++;
+                }
+            }
+        }
         
         return [
             'series' => [
-                (int)$resultado['llegadas_tiempo'],
-                (int)$resultado['llegadas_tarde'],
-                (int)$faltasResult['faltas']
+                $llegadas_temprano,
+                $llegadas_tiempo,
+                $llegadas_tarde,
+                $faltas
             ]
         ];
         
     } catch (PDOException $e) {
         error_log("Error al obtener distribución de asistencias: " . $e->getMessage());
         return [
-            'series' => [0, 0, 0]
+            'series' => [0, 0, 0, 0]
         ];
     }
 }

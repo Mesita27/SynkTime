@@ -32,14 +32,13 @@ class Dashboard {
             faltas: []
         };
         
-        // Inicializar fecha
-        this.datePicker.value = this.formatDate(new Date());
+        // Inicializar fecha si existe el elemento
+        if (this.datePicker) {
+            this.datePicker.value = this.formatDate(new Date());
+        }
         
         // Inicializar eventos
         this.initEvents();
-        
-        // Inicializar gráficos
-        this.initCharts();
         
         // Configurar event listeners para los popups
         this.setupAttendanceCardListeners();
@@ -69,110 +68,120 @@ class Dashboard {
     }
     
     /**
-     * Inicializar gráficos de Chart.js
+     * Inicializar gráficos con datos iniciales
      */
-    initCharts() {
-        // Obtener los contextos de los gráficos
-        const hourCtx = document.getElementById('attendanceByHourChart')?.getContext('2d');
-        const distCtx = document.getElementById('attendanceDistributionChart')?.getContext('2d');
-        
-        if (hourCtx) {
-            // Inicializar gráfico de asistencias por hora
-            this.attendanceByHourChart = new Chart(hourCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Asistencias',
-                        data: [],
-                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
+    initializeChartsWithData(initialData) {
+        // Inicializar gráfico de asistencias por hora
+        const hourlyOptions = {
+            series: [{
+                name: 'Entradas',
+                data: initialData.hourlyAttendanceData ? initialData.hourlyAttendanceData.data : []
+            }],
+            chart: {
+                type: 'area',
+                height: 350,
+                toolbar: { show: false },
+                animations: { enabled: true, easing: 'easeinout', speed: 800 }
+            },
+            colors: ['#4B96FA'],
+            fill: {
+                type: 'gradient',
+                gradient: { 
+                    shade: 'dark', 
+                    type: 'vertical', 
+                    shadeIntensity: 0.3, 
+                    opacityFrom: 0.7, 
+                    opacityTo: 0.2, 
+                    stops: [0, 90, 100] 
+                }
+            },
+            stroke: { curve: 'smooth', width: 3 },
+            xaxis: { 
+                categories: initialData.hourlyAttendanceData ? initialData.hourlyAttendanceData.categories : [], 
+                labels: { style: { colors: '#718096' } } 
+            },
+            yaxis: { 
+                labels: { style: { colors: '#718096' } } 
+            },
+            tooltip: { 
+                theme: 'light', 
+                y: { formatter: value => value + ' empleados' } 
+            },
+            grid: { 
+                borderColor: '#e0e6ed', 
+                strokeDashArray: 5, 
+                xaxis: { lines: { show: true } }, 
+                yaxis: { lines: { show: true } } 
+            }
+        };
+
+        // Inicializar gráfico de distribución
+        const distributionOptions = {
+            series: initialData.distributionData ? [
+                initialData.distributionData.tempranos || 0,
+                initialData.distributionData.atiempo || 0,
+                initialData.distributionData.tarde || 0,
+                initialData.distributionData.faltas || 0
+            ] : [0, 0, 0, 0],
+            chart: { type: 'donut', height: 350 },
+            colors: ['#28A745', '#48BB78', '#F6AD55', '#F56565'],
+            labels: ['Tempranos', 'A Tiempo', 'Tardanzas', 'Faltas'],
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '70%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Total',
+                                formatter: w => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
                             }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    onClick: (event, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const hour = this.attendanceByHourChart.data.labels[index];
-                            console.log(`Click en hora: ${hour}`);
-                            // Aquí podrías mostrar un popup con detalles para esa hora específica
                         }
                     }
                 }
+            },
+            legend: { position: 'bottom', horizontalAlign: 'center' },
+            dataLabels: { 
+                enabled: true, 
+                formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] 
+            },
+            responsive: [{
+                breakpoint: 480,
+                options: {
+                    chart: { width: 300 },
+                    legend: { position: 'bottom' }
+                }
+            }]
+        };
+
+        this.attendanceByHourChart = new ApexCharts(document.querySelector("#hourlyAttendanceChart"), hourlyOptions);
+        this.attendanceDistributionChart = new ApexCharts(document.querySelector("#attendanceDistributionChart"), distributionOptions);
+        
+        this.attendanceByHourChart.render();
+        this.attendanceDistributionChart.render();
+    }
+
+    /**
+     * Update charts with new data
+     */
+    updateCharts(hourlyData, distributionData) {
+        if (this.attendanceByHourChart) {
+            this.attendanceByHourChart.updateOptions({
+                xaxis: { categories: hourlyData.categories || [] }
             });
+            this.attendanceByHourChart.updateSeries([{
+                name: 'Entradas',
+                data: hourlyData.data || []
+            }]);
         }
-        
-        if (distCtx) {
-            // Inicializar gráfico de distribución de asistencias
-            this.attendanceDistributionChart = new Chart(distCtx, {
-                type: 'pie',
-                data: {
-                    labels: ['Tempranos', 'A tiempo', 'Tardanzas', 'Faltas'],
-                    datasets: [{
-                        data: [0, 0, 0, 0],
-                        backgroundColor: [
-                            'rgba(40, 167, 69, 0.7)',  // Verde para tempranos
-                            'rgba(75, 192, 192, 0.7)', // Azul claro para a tiempo
-                            'rgba(255, 159, 64, 0.7)', // Naranja para tardanzas
-                            'rgba(255, 99, 132, 0.7)'  // Rojo para faltas
-                        ],
-                        borderColor: [
-                            'rgba(40, 167, 69, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(255, 159, 64, 1)',
-                            'rgba(255, 99, 132, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = total > 0 ? Math.round(value / total * 100) : 0;
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    },
-                    onClick: (event, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const category = this.attendanceDistributionChart.data.labels[index];
-                            
-                            // Mapear categoría a tipo de popup
-                            const categoryMap = {
-                                'Tempranos': 'temprano',
-                                'A tiempo': 'aTiempo',
-                                'Tardanzas': 'tarde',
-                                'Faltas': 'faltas'
-                            };
-                            
-                            if (categoryMap[category]) {
-                                this.showAttendancePopup(categoryMap[category]);
-                            }
-                        }
-                    }
-                }
-            });
+        if (this.attendanceDistributionChart) {
+            this.attendanceDistributionChart.updateSeries([
+                distributionData.tempranos || 0,
+                distributionData.atiempo || 0,
+                distributionData.tarde || 0,
+                distributionData.faltas || 0
+            ]);
         }
     }
     
@@ -298,20 +307,23 @@ class Dashboard {
                     
                     // Actualizar gráfico de asistencias por hora
                     if (this.attendanceByHourChart && data.asistenciasPorHora) {
-                        this.attendanceByHourChart.data.labels = data.asistenciasPorHora.labels;
-                        this.attendanceByHourChart.data.datasets[0].data = data.asistenciasPorHora.values;
-                        this.attendanceByHourChart.update();
+                        this.attendanceByHourChart.updateOptions({
+                            xaxis: { categories: data.asistenciasPorHora.categories || [] }
+                        });
+                        this.attendanceByHourChart.updateSeries([{
+                            name: 'Entradas',
+                            data: data.asistenciasPorHora.data || []
+                        }]);
                     }
                     
                     // Actualizar gráfico de distribución de asistencias
-                    if (this.attendanceDistributionChart && data.distribucionAsistencias) {
-                        this.attendanceDistributionChart.data.datasets[0].data = [
-                            data.estadisticas.totalTemprano || 0,
-                            data.estadisticas.totalATiempo || 0,
-                            data.estadisticas.totalTarde || 0,
-                            data.estadisticas.totalFaltas || 0
-                        ];
-                        this.attendanceDistributionChart.update();
+                    if (this.attendanceDistributionChart) {
+                        this.attendanceDistributionChart.updateSeries([
+                            data.estadisticas.llegadas_temprano || 0,
+                            data.estadisticas.llegadas_tiempo || 0,
+                            data.estadisticas.llegadas_tarde || 0,
+                            data.estadisticas.faltas || 0
+                        ]);
                     }
                     
                     // Actualizar actividad reciente
@@ -346,14 +358,17 @@ class Dashboard {
         
         // Limpiar gráficos
         if (this.attendanceByHourChart) {
-            this.attendanceByHourChart.data.labels = [];
-            this.attendanceByHourChart.data.datasets[0].data = [];
-            this.attendanceByHourChart.update();
+            this.attendanceByHourChart.updateOptions({
+                xaxis: { categories: [] }
+            });
+            this.attendanceByHourChart.updateSeries([{
+                name: 'Entradas',
+                data: []
+            }]);
         }
         
         if (this.attendanceDistributionChart) {
-            this.attendanceDistributionChart.data.datasets[0].data = [0, 0, 0, 0];
-            this.attendanceDistributionChart.update();
+            this.attendanceDistributionChart.updateSeries([0, 0, 0, 0]);
         }
         
         // Limpiar actividad reciente
