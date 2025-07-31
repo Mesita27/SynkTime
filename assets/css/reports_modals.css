@@ -1,0 +1,443 @@
+/**
+ * SynkTime - Estilos para modales del módulo de reportes
+ *
+ * Este archivo contiene los estilos específicos para los modales
+ * del módulo de reportes, incluyendo pestañas y secciones.
+ */
+
+/* Modal base */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: 95%;
+    max-width: 700px;
+    min-width: 280px; /* Añadir ancho mínimo */
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+    animation: modalFadeIn 0.3s;
+    margin: 20px auto;
+    overflow: hidden; /* Asegurar que el overflow esté oculto */
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #E2E8F0;
+    border-radius: 10px 10px 0 0;
+    flex-shrink: 0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #2D3748;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.modal-header h3 i {
+    margin-right: 10px;
+    color: #2B7DE9;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #718096;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #2D3748;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 12px 20px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-radius: 0 0 10px 10px;
+    flex-shrink: 0;
+}
+
+/* Loader del modal */
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    color: #718096;
+}
+
+.loader-container i {
+    font-size: 2rem;
+    color: #2B7DE9;
+    margin-bottom: 15px;
+}
+
+/* Pestañas en modales */
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid #E2E8F0;
+    margin: -20px -20px 20px -20px;
+    background-color: #f8f9fa;
+    padding: 0;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+
+.modal-tab {
+    padding: 12px 16px;
+    cursor: pointer;
+    color: #718096;
+    font-weight: 500;
+    position: relative;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.modal-tab.active {
+    color: #2B7DE9;
+    border-bottom-color: #2B7DE9;
+}
+
+.modal-tab i {
+    margin-right: 6px;
+}
+
+.modal-tab-content {
+    display: none;
+    padding-top: 20px;
+}
+
+.modal-tab-content.active {
+    display: block;
+}
+
+/* Secciones dentro del modal */
+.modal-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.modal-section:last-child {
+    margin-bottom: 0;
+}
+
+.modal-section-title {
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #E2E8F0;
+    font-size: 1rem;
+    color: #2B7DE9;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.modal-section-title i {
+    margin-right: 8px;
+}
+
+/* Grilla para campos */
+.modal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+}
+
+.modal-grid-item {
+    background: white;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #E2E8F0;
+}
+
+.modal-grid-item-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #718096;
+    margin-bottom: 4px;
+}
+
+.modal-grid-item-value {
+    font-weight: 500;
+    color: #2D3748;
+    font-size: 0.95rem;
+}
+
+.modal-grid-item-full {
+    grid-column: 1 / -1;
+}
+
+.modal-grid-item a {
+    color: #2B7DE9;
+    text-decoration: none;
+}
+
+.modal-grid-item a:hover {
+    text-decoration: underline;
+}
+
+/* Tabla compacta dentro del modal */
+.modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.modal-table th {
+    background: #f0f6fe;
+    color: #2B7DE9;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.modal-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #E2E8F0;
+    color: #2D3748;
+}
+
+.modal-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Perfil de empleado en cabecera */
+.employee-profile {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.employee-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background-color: #f0f6fe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.employee-avatar i {
+    font-size: 35px;
+    color: #2B7DE9;
+}
+
+.employee-info {
+    flex: 1;
+}
+
+.employee-name {
+    margin: 0 0 5px 0;
+    font-size: 1.3rem;
+    color: #2D3748;
+    font-weight: 500;
+}
+
+.employee-subtitle {
+    margin: 0 0 8px 0;
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+/* Estados y badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-temprano,
+.status-active {
+    background-color: #e6fffa;
+    color: #38b2ac;
+}
+
+.status-tardanza {
+    background-color: #fefcbf;
+    color: #d69e2e;
+}
+
+.status-ausente,
+.status-inactive {
+    background-color: #fed7d7;
+    color: #e53e3e;
+}
+
+/* Botones */
+.btn-primary, 
+.btn-secondary {
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-weight: 500;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: #2B7DE9;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #1A56B3;
+}
+
+.btn-secondary {
+    background-color: #EDF2F7;
+    color: #4A5568;
+    border: 1px solid #E2E8F0;
+}
+
+.btn-secondary:hover {
+    background-color: #E2E8F0;
+}
+
+.btn-primary i, 
+.btn-secondary i {
+    margin-right: 6px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .modal-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .employee-profile {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .employee-avatar {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .modal-tabs {
+        overflow-x: auto;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10px auto;
+    }
+}
+
+/* Estilos para la visualización de fotos */
+.photo-container {
+    text-align: center;
+    margin: 20px auto;
+    max-width: 100%;
+}
+
+.photo-controls {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+/* Asegúrate de que los contenidos de las pestañas se muestren correctamente */
+.modal-tab-content {
+    display: none;
+    width: 100%;
+}
+
+.modal-tab-content.active {
+    display: block;
+}
+
+/* Estilos para las pestañas */
+.modal-tabs {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 1px solid #e2e8f0;
+    margin: 0 -20px 20px;
+    padding: 0 20px;
+    background-color: #f8fafc;
+    position: relative;
+}
+
+.modal-tab {
+    padding: 12px 16px;
+    cursor: pointer;
+    color: #718096;
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.modal-tab.active {
+    color: #2B7DE9;
+    border-bottom-color: #2B7DE9;
+}
+
+.modal-tab i {
+    margin-right: 6px;
+}
