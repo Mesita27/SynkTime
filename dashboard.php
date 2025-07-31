@@ -231,6 +231,7 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
         </div>
     </div>
     <script src="assets/js/layout.js"></script>
+    <script src="assets/js/dashboard.js"></script>
     <script>
     // Variables globales para los datos iniciales
     const initialData = {
@@ -238,11 +239,18 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
         establecimientoId: <?php echo json_encode($establecimientoDefaultId); ?>,
         fecha: <?php echo json_encode($fechaDashboard); ?>,
         hourlyAttendanceData: <?php echo json_encode($asistenciasPorHora); ?>,
-        distributionData: <?php echo json_encode($distribucionAsistencias); ?>
+        distributionData: {
+            tempranos: <?php echo $estadisticas['llegadas_temprano'] ?? 0; ?>,
+            atiempo: <?php echo $estadisticas['llegadas_tiempo'] ?? 0; ?>,
+            tarde: <?php echo $estadisticas['llegadas_tarde'] ?? 0; ?>,
+            faltas: <?php echo $estadisticas['faltas'] ?? 0; ?>
+        }
     };
 
     document.addEventListener('DOMContentLoaded', function() {
-        const dashboard = new Dashboard(initialData);
+        const dashboard = new Dashboard();
+        dashboard.initializeChartsWithData(initialData);
+        
         const selectSede = document.getElementById('selectSede');
         const selectEstablecimiento = document.getElementById('selectEstablecimiento');
         const selectFecha = document.getElementById('selectFecha');
@@ -315,7 +323,16 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
                         llegadasTarde.textContent = data.estadisticas.llegadas_tarde || 0;
                         faltas.textContent = data.estadisticas.faltas || 0;
                         horasTrabajadas.textContent = data.estadisticas.horas_trabajadas || 0;
-                        dashboard.updateCharts(data.asistenciasPorHora, data.distribucionAsistencias);
+                        
+                        // Update charts with proper data structure
+                        const hourlyData = data.asistenciasPorHora || { categories: [], data: [] };
+                        const distributionData = {
+                            tempranos: data.estadisticas.llegadas_temprano || 0,
+                            atiempo: data.estadisticas.llegadas_tiempo || 0,
+                            tarde: data.estadisticas.llegadas_tarde || 0,
+                            faltas: data.estadisticas.faltas || 0
+                        };
+                        dashboard.updateCharts(hourlyData, distributionData);
                         actualizarTablaActividad(data.actividadReciente);
                     } else {
                         limpiarEstadisticas();
@@ -346,7 +363,7 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
             llegadasTarde.textContent = '0';
             faltas.textContent = '0';
             horasTrabajadas.textContent = '0';
-            dashboard.updateCharts({ categories: [], data: [] }, { series: [0, 0, 0] });
+            dashboard.updateCharts({ categories: [], data: [] }, { tempranos: 0, atiempo: 0, tarde: 0, faltas: 0 });
             activityTableBody.innerHTML = `
                 <tr>
                     <td colspan="5" class="no-data">Seleccione un filtro para ver la actividad.</td>
@@ -411,86 +428,6 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
             return div.innerHTML;
         }
     });
-
-    class Dashboard {
-        constructor(initialData) {
-            this.hourlyAttendanceChart = null;
-            this.attendanceDistributionChart = null;
-            this.initializeCharts(initialData);
-        }
-        initializeCharts(initialData) {
-            const hourlyOptions = {
-                series: [{
-                    name: 'Entradas',
-                    data: initialData.hourlyAttendanceData ? initialData.hourlyAttendanceData.data : []
-                }],
-                chart: {
-                    type: 'area',
-                    height: 350,
-                    toolbar: { show: false },
-                    animations: { enabled: true, easing: 'easeinout', speed: 800 }
-                },
-                colors: ['#4B96FA'],
-                fill: {
-                    type: 'gradient',
-                    gradient: { shade: 'dark', type: 'vertical', shadeIntensity: 0.3, opacityFrom: 0.7, opacityTo: 0.2, stops: [0, 90, 100] }
-                },
-                stroke: { curve: 'smooth', width: 3 },
-                xaxis: { categories: initialData.hourlyAttendanceData ? initialData.hourlyAttendanceData.categories : [], labels: { style: { colors: '#718096' } } },
-                yaxis: { labels: { style: { colors: '#718096' } } },
-                tooltip: { theme: 'light', y: { formatter: value => value + ' empleados' } },
-                grid: { borderColor: '#e0e6ed', strokeDashArray: 5, xaxis: { lines: { show: true } }, yaxis: { lines: { show: true } } }
-            };
-            const distributionOptions = {
-                series: initialData.distributionData ? initialData.distributionData.series : [0, 0, 0],
-                chart: { type: 'donut', height: 350 },
-                colors: ['#48BB78', '#F6AD55', '#F56565'],
-                labels: ['A Tiempo', 'Tardanzas', 'Faltas'],
-                plotOptions: {
-                    pie: {
-                        donut: {
-                            size: '70%',
-                            labels: {
-                                show: true,
-                                total: {
-                                    show: true,
-                                    label: 'Total',
-                                    formatter: w => w.globals.seriesTotals.reduce((a, b) => a + b, 0)
-                                }
-                            }
-                        }
-                    }
-                },
-                legend: { position: 'bottom', horizontalAlign: 'center' },
-                dataLabels: { enabled: true, formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] },
-                responsive: [{
-                    breakpoint: 480,
-                    options: {
-                        chart: { width: 300 },
-                        legend: { position: 'bottom' }
-                    }
-                }]
-            };
-            this.hourlyAttendanceChart = new ApexCharts(document.querySelector("#hourlyAttendanceChart"), hourlyOptions);
-            this.attendanceDistributionChart = new ApexCharts(document.querySelector("#attendanceDistributionChart"), distributionOptions);
-            this.hourlyAttendanceChart.render();
-            this.attendanceDistributionChart.render();
-        }
-        updateCharts(hourlyData, distributionData) {
-            if (this.hourlyAttendanceChart) {
-                this.hourlyAttendanceChart.updateOptions({
-                    xaxis: { categories: hourlyData.categories || [] }
-                });
-                this.hourlyAttendanceChart.updateSeries([{
-                    name: 'Entradas',
-                    data: hourlyData.data || []
-                }]);
-            }
-            if (this.attendanceDistributionChart) {
-                this.attendanceDistributionChart.updateSeries(distributionData.series || [0, 0, 0]);
-            }
-        }
-    }
     </script>
 
     <!-- Al final del dashboard.php, justo antes del cierre de body -->
