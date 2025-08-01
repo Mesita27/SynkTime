@@ -44,6 +44,14 @@ requireAuth();
                             <select id="filtro_establecimiento" name="establecimiento" class="form-control"></select>
                         </div>
                         <div class="form-group">
+                            <label for="filtro_tipo">Tipo</label>
+                            <select id="filtro_tipo" name="tipo" class="form-control">
+                                <option value="">Todos</option>
+                                <option value="ENTRADA">Solo Entradas</option>
+                                <option value="SALIDA">Solo Salidas</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="codigoBusqueda">Código Empleado</label>
                             <input type="text" id="codigoBusqueda" name="codigo" class="form-control" placeholder="Ingrese código">
                         </div>

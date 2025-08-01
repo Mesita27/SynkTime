@@ -28,7 +28,8 @@ try {
     $filtros = [
         'codigo' => $_GET['codigo'] ?? null,
         'sede' => $_GET['sede'] ?? null,
-        'establecimiento' => $_GET['establecimiento'] ?? null
+        'establecimiento' => $_GET['establecimiento'] ?? null,
+        'tipo' => $_GET['tipo'] ?? null
     ];
 
     // Construcción de la consulta base
@@ -55,6 +56,11 @@ try {
     if ($filtros['establecimiento']) {
         $where[] = "est.ID_ESTABLECIMIENTO = :establecimiento";
         $params[':establecimiento'] = $filtros['establecimiento'];
+    }
+
+    if ($filtros['tipo']) {
+        $where[] = "a.TIPO = :tipo";
+        $params[':tipo'] = $filtros['tipo'];
     }
 
     $whereClause = implode(' AND ', $where);
