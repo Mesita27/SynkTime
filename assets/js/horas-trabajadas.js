@@ -132,8 +132,16 @@ class HorasTrabajadas {
             if (sedeId) url += `sede_id=${sedeId}&`;
             if (establecimientoId) url += `establecimiento_id=${establecimientoId}&`;
 
+            console.log('Loading empleados from:', url); // Debug
+
             const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
+            console.log('Empleados response:', data); // Debug
             
             if (data.success && data.empleados) {
                 this.availableEmpleados = data.empleados;
@@ -146,10 +154,15 @@ class HorasTrabajadas {
                 
                 this.updateEmpleadosButton();
                 this.populateEmpleadosList();
+                
+                console.log(`Loaded ${data.empleados.length} empleados`); // Debug
+            } else {
+                console.error('API error:', data);
+                this.showError(data.message || 'Error al cargar empleados');
             }
         } catch (error) {
             console.error('Error loading empleados:', error);
-            this.showError('Error al cargar empleados');
+            this.showError('Error al cargar empleados: ' + error.message);
         }
     }
 
@@ -211,14 +224,27 @@ class HorasTrabajadas {
     updateEmpleadosButton() {
         const btn = document.getElementById('btnSelectEmpleados');
         const textSpan = btn.querySelector('.empleados-text');
+        let countSpan = btn.querySelector('.empleados-count');
+        
+        // Create count span if it doesn't exist
+        if (!countSpan) {
+            countSpan = document.createElement('span');
+            countSpan.className = 'empleados-count';
+            btn.insertBefore(countSpan, btn.querySelector('i'));
+        }
         
         if (this.selectedEmpleados.length === 0) {
             textSpan.textContent = 'Todos los empleados';
+            countSpan.classList.remove('show');
         } else if (this.selectedEmpleados.length === 1) {
             const empleado = this.availableEmpleados.find(emp => emp.ID_EMPLEADO == this.selectedEmpleados[0]);
             textSpan.textContent = empleado ? `${empleado.NOMBRE} ${empleado.APELLIDO}` : '1 empleado seleccionado';
+            countSpan.textContent = '1';
+            countSpan.classList.add('show');
         } else {
             textSpan.textContent = `${this.selectedEmpleados.length} empleados seleccionados`;
+            countSpan.textContent = this.selectedEmpleados.length;
+            countSpan.classList.add('show');
         }
     }
 
@@ -226,10 +252,23 @@ class HorasTrabajadas {
         document.getElementById('modalSelectEmpleados').style.display = 'block';
         document.getElementById('btnSelectEmpleados').classList.add('active');
         
-        // Load employees if not already loaded
+        // Show loading state
+        const loading = document.getElementById('empleadosLoading');
+        const container = document.getElementById('empleadosListContent');
+        const noResults = document.getElementById('empleadosNoResults');
+        
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        noResults.style.display = 'none';
+        
+        // Load employees if not already loaded or if empty
         if (this.availableEmpleados.length === 0) {
-            this.loadEmpleados();
+            console.log('Loading empleados for modal...'); // Debug
+            this.loadEmpleados().then(() => {
+                console.log('Empleados loaded for modal:', this.availableEmpleados.length); // Debug
+            });
         } else {
+            console.log('Using cached empleados:', this.availableEmpleados.length); // Debug
             this.populateEmpleadosList();
         }
         
@@ -253,11 +292,14 @@ class HorasTrabajadas {
         
         const empleadosToShow = empleados || this.availableEmpleados;
         
+        console.log('Populating list with empleados:', empleadosToShow.length); // Debug
+        
         if (empleadosToShow.length === 0) {
             container.style.display = 'none';
             loading.style.display = 'none';
             noResults.style.display = 'block';
             this.updateSelectedCount();
+            console.log('No empleados to show'); // Debug
             return;
         }
         
@@ -305,6 +347,7 @@ class HorasTrabajadas {
         });
         
         this.updateSelectedCount();
+        console.log('List populated successfully with', empleadosToShow.length, 'empleados'); // Debug
     }
 
     onEmpleadoToggle(e) {
@@ -400,7 +443,19 @@ class HorasTrabajadas {
     }
 
     updateSelectedCount() {
-        document.getElementById('selectedCount').textContent = this.selectedEmpleados.length;
+        const countElement = document.getElementById('selectedCount');
+        const count = this.selectedEmpleados.length;
+        countElement.textContent = count;
+        
+        // Update the visual state of the count element
+        const countContainer = countElement.closest('.selected-count');
+        if (countContainer) {
+            if (count > 0) {
+                countContainer.style.display = 'flex';
+            } else {
+                countContainer.style.display = 'flex'; // Always show, just with 0
+            }
+        }
     }
 
     confirmEmpleadosSelection() {

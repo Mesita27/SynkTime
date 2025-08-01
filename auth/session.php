@@ -138,6 +138,8 @@ function isSessionExpired($timeout = 7200) { // 2 horas por defecto
  * Requiere autenticación - redirige al login si no está autenticado
  */
 function requireAuth() {
+    initSession(); // Asegurar que la sesión está iniciada
+    
     if (!isAuthenticated() || isSessionExpired()) {
         // Limpiar sesión expirada
         if (isSessionExpired()) {
@@ -193,9 +195,6 @@ function isAdmin() {
  * Verifica si el usuario tiene permisos completos (no es solo ASISTENCIA)
  */
 function hasFullAccess() {
- * Verifica si el usuario tiene acceso a un módulo específico
- */
-function hasModuleAccess($module) {
     if (!isAuthenticated()) {
         return false;
     }
@@ -203,8 +202,29 @@ function hasModuleAccess($module) {
     $rol = $_SESSION['rol'] ?? '';
     
     // GERENTE, ADMIN, DUEÑO tienen acceso completo
-    // Solo ASISTENCIA tiene acceso restringido
     return in_array($rol, ['GERENTE', 'ADMINISTRADOR', 'ADMIN', 'DUEÑO', 'DUENO']);
+}
+function hasModuleAccess($module) {
+    if (!isAuthenticated()) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['rol'] ?? '';
+    
+    // GERENTE, ADMIN, DUEÑO tienen acceso completo a todos los módulos
+    if (in_array($userRole, ['GERENTE', 'ADMINISTRADOR', 'ADMIN', 'DUEÑO', 'DUENO'])) {
+        return true;
+    }
+    
+    // Rol ASISTENCIA solo tiene acceso limitado
+    if ($userRole === 'ASISTENCIA') {
+        // Módulos permitidos para ASISTENCIA
+        $allowedModules = ['asistencia', 'attendance'];
+        return in_array($module, $allowedModules);
+    }
+    
+    // Por defecto, denegar acceso para roles no definidos
+    return false;
 }
 
 /**
@@ -226,18 +246,9 @@ function getRoleBasedWhereConditions($empresaId) {
     // Para ASISTENCIA: restringir a empleados de la misma empresa
     // En el futuro se puede refinar esta lógica para ser más específica
     return [
-        'conditions' => [],
-        'params' => []
+        'conditions' => ['ID_EMPRESA = :empresa_id'],
+        'params' => ['empresa_id' => $empresaId]
     ];
-    $userRole = $_SESSION['rol'] ?? '';
-    
-    // Rol ASISTENCIA solo tiene acceso al módulo de asistencia
-    if ($userRole === 'ASISTENCIA') {
-        return $module === 'asistencia';
-    }
-    
-    // Otros roles tienen acceso completo por defecto
-    return true;
 }
 
 /**
@@ -250,11 +261,12 @@ function requireModuleAccess($module) {
         // Si es rol ASISTENCIA y trata de acceder a otro módulo, redirigir a asistencia
         if (hasRole('ASISTENCIA')) {
             header('Location: attendance.php');
+            exit;
         } else {
             // Para otros casos, redirigir al dashboard
             header('Location: dashboard.php');
+            exit;
         }
-        exit;
     }
 }
 ?>

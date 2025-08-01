@@ -327,6 +327,10 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     width: 90%;
     max-width: 500px;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     animation: modalSlideIn 0.3s ease;
 }
 
@@ -384,6 +388,8 @@
 
 .modal-body {
     padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .form-group {
@@ -440,6 +446,7 @@
     cursor: pointer;
     text-align: left;
     background: var(--bg-primary) !important;
+    position: relative;
 }
 
 .empleados-btn:hover {
@@ -451,12 +458,30 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-right: 0.5rem;
+}
+
+.empleados-count {
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    margin-right: 0.5rem;
+    min-width: 20px;
+    text-align: center;
+    display: none;
+}
+
+.empleados-count.show {
+    display: inline-block;
 }
 
 .empleados-btn i {
-    margin-left: 0.5rem;
     color: var(--text-secondary);
     transition: transform 0.2s ease;
+    flex-shrink: 0;
 }
 
 .empleados-btn.active i {
@@ -467,7 +492,7 @@
 .modal-empleados .modal-content {
     max-width: 600px;
     width: 95%;
-    max-height: 80vh;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
 }
@@ -478,6 +503,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-height: 0;
 }
 
 /* Search Section */
@@ -549,12 +575,32 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 300px;
 }
 
 .empleados-list {
     flex: 1;
     overflow-y: auto;
     padding: 0.5rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.empleados-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.empleados-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.empleados-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.empleados-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 .empleado-item {
@@ -642,51 +688,93 @@
 .modal-footer {
     padding: 1.5rem;
     border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
+    background: var(--bg-primary);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .selected-count {
     font-size: 0.875rem;
     color: var(--text-secondary);
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .selected-count span {
-    color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
     font-weight: 600;
+    font-size: 0.75rem;
+    min-width: 24px;
+    text-align: center;
+}
+
+.selected-count i {
+    color: var(--primary-color);
 }
 
 /* Responsive adjustments for employee modal */
 @media (max-width: 768px) {
     .modal-empleados .modal-content {
-        margin: 2% auto;
-        max-height: 95vh;
+        margin: 5% auto;
+        max-height: 85vh;
+        width: 95%;
+    }
+    
+    .modal-content {
+        max-height: 90vh;
     }
     
     .empleados-actions {
         flex-direction: column;
         gap: 0.5rem;
+        padding: 0.5rem 1rem;
     }
     
     .empleado-item {
-        padding: 0.5rem 1rem;
+        padding: 0.75rem 1rem;
+    }
+    
+    .empleado-meta {
+        flex-direction: column;
+        gap: 0.25rem;
     }
     
     .modal-footer {
         flex-direction: column;
         gap: 1rem;
         align-items: stretch;
+        padding: 1rem;
     }
     
     .form-actions {
         justify-content: stretch;
+        gap: 0.5rem;
     }
     
     .form-actions button {
         flex: 1;
+    }
+    
+    .empleados-list-container {
+        min-height: 200px;
+    }
+    
+    .empleados-btn {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .empleados-text {
+        margin-right: 0;
     }
 }
 
@@ -755,17 +843,4 @@
     --text-secondary: #64748b;
     --border-color: #e2e8f0;
     --border-light: #f1f5f9;
-}
-
-/* Dark mode support (if implemented) */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-primary: #1e293b;
-        --bg-secondary: #334155;
-        --bg-hover: #475569;
-        --text-primary: #f8fafc;
-        --text-secondary: #cbd5e1;
-        --border-color: #475569;
-        --border-light: #334155;
-    }
 }
