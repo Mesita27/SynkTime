@@ -123,7 +123,21 @@ class Dashboard {
                 initialData.distributionData.tarde || 0,
                 initialData.distributionData.faltas || 0
             ] : [0, 0, 0, 0],
-            chart: { type: 'donut', height: 350 },
+            chart: { 
+                type: 'donut', 
+                height: 350,
+                events: {
+                    dataPointSelection: function(event, chartContext, config) {
+                        // Mapear índices del gráfico a tipos de modal
+                        const tipoMap = ['temprano', 'aTiempo', 'tarde', 'faltas'];
+                        const tipoSeleccionado = tipoMap[config.dataPointIndex];
+                        
+                        if (tipoSeleccionado && window.mostrarModalAsistencias) {
+                            window.mostrarModalAsistencias(tipoSeleccionado);
+                        }
+                    }
+                }
+            },
             colors: ['#28A745', '#48BB78', '#F6AD55', '#F56565'],
             labels: ['Tempranos', 'A Tiempo', 'Tardanzas', 'Faltas'],
             plotOptions: {
@@ -182,6 +196,22 @@ class Dashboard {
                 distributionData.tarde || 0,
                 distributionData.faltas || 0
             ]);
+            
+            // Actualizar también las opciones del gráfico para mantener la funcionalidad de clic
+            this.attendanceDistributionChart.updateOptions({
+                chart: {
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            const tipoMap = ['temprano', 'aTiempo', 'tarde', 'faltas'];
+                            const tipoSeleccionado = tipoMap[config.dataPointIndex];
+                            
+                            if (tipoSeleccionado && window.mostrarModalAsistencias) {
+                                window.mostrarModalAsistencias(tipoSeleccionado);
+                            }
+                        }
+                    }
+                }
+            });
         }
     }
     

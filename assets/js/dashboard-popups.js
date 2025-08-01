@@ -13,6 +13,9 @@ let attendanceData = {
 
 // Inicializar funcionalidad de popups
 document.addEventListener('DOMContentLoaded', function() {
+    // Hacer la función disponible globalmente
+    window.mostrarModalAsistencias = mostrarModalAsistencias;
+    
     // Hacer clicables las tarjetas de estadísticas
     hacerTarjetasClicables();
     
@@ -44,25 +47,10 @@ function hacerTarjetasClicables() {
         }
     });
     
-    // Configurar el gráfico de distribución para que también sea interactivo
-    configurarGraficoDistribucion();
+    // Configurar el gráfico de distribución para ser interactivo se maneja ahora en dashboard.js
 }
 
-// Configurar el gráfico de distribución para abrir modales al hacer clic
-function configurarGraficoDistribucion() {
-    // Intentar encontrar el gráfico después de que se haya inicializado
-    setTimeout(function() {
-        const chartElement = document.getElementById('attendanceDistributionChart');
-        if (chartElement && window.ApexCharts) {
-            // Agregar evento de clic a las secciones del gráfico si es posible
-            chartElement.addEventListener('click', function() {
-                // Determinar en qué sección se hizo clic es difícil sin acceso directo al objeto ApexCharts
-                // Por lo que simplemente mostramos el modal de A Tiempo por defecto
-                mostrarModalAsistencias('aTiempo');
-            });
-        }
-    }, 1000); // Esperar 1 segundo para dar tiempo a que se inicialice el gráfico
-}
+
 
 // Configurar eventos para los modales
 function configurarEventosModales() {
@@ -87,7 +75,7 @@ function configurarEventosModales() {
     });
 }
 
-// Modificar la función mostrarModalAsistencias para añadir depuración
+// Función para mostrar modal de asistencias usando api/attendance/list.php
 function mostrarModalAsistencias(tipo) {
     // Obtener elementos necesarios
     const modal = document.getElementById(`${tipo}-modal`);
@@ -97,7 +85,6 @@ function mostrarModalAsistencias(tipo) {
     
     if (!modal || !fechaElement || !ubicacionElement || !tableBody) {
         console.error(`No se encontraron los elementos para el modal de ${tipo}`);
-        alert(`No se encontraron elementos para el modal: ${tipo}-modal, ${tipo}-modal-fecha, ${tipo}-modal-ubicacion, o ${tipo}-table-body`);
         return;
     }
     
@@ -111,6 +98,9 @@ function mostrarModalAsistencias(tipo) {
     
     // Determinar la ubicación (sede o establecimiento)
     let ubicacion = "Toda la empresa";
+    const selectSede = document.getElementById('selectSede');
+    const selectEstablecimiento = document.getElementById('selectEstablecimiento');
+    
     if (establecimientoId && selectEstablecimiento.selectedIndex >= 0) {
         ubicacion = selectEstablecimiento.options[selectEstablecimiento.selectedIndex].text;
     } else if (sedeId && selectSede.selectedIndex >= 0) {
@@ -130,7 +120,87 @@ function mostrarModalAsistencias(tipo) {
         </tr>
     `;
     
-    // Construir la URL para la API
+    // Construir la URL para la API de attendance/list.php
+    let apiUrl = `api/attendance/list.php?limit=1000&page=1`;
+    if (establecimientoId) {
+        apiUrl += `&establecimiento=${establecimientoId}`;
+    } else if (sedeId) {
+        apiUrl += `&sede=${sedeId}`;
+    }
+    
+    console.log('URL de la API:', apiUrl);
+    
+    // Cargar datos desde la API de attendance list
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Datos recibidos:', data);
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Error desconocido');
+            }
+            
+            // Filtrar solo registros de ENTRADA del día seleccionado
+            const fechaSeleccionada = fecha;
+            const registrosEntrada = data.data.filter(registro => 
+                registro.tipo === 'ENTRADA' && registro.fecha === fechaSeleccionada
+            );
+            
+            // Filtrar por tipo de asistencia
+            let datosFiltrados = [];
+            
+            if (tipo === 'temprano') {
+                // Llegadas tempranas: sin tardanza y antes de la hora de entrada
+                datosFiltrados = registrosEntrada.filter(registro => 
+                    registro.tardanza === 'N' && 
+                    (registro.HORA_ENTRADA && registro.hora < registro.HORA_ENTRADA)
+                );
+            } else if (tipo === 'aTiempo') {
+                // Llegadas a tiempo: sin tardanza y en horario o después
+                datosFiltrados = registrosEntrada.filter(registro => 
+                    registro.tardanza === 'N' && 
+                    (!registro.HORA_ENTRADA || registro.hora >= registro.HORA_ENTRADA)
+                );
+            } else if (tipo === 'tarde') {
+                // Llegadas tarde: con tardanza
+                datosFiltrados = registrosEntrada.filter(registro => 
+                    registro.tardanza === 'S'
+                );
+            } else if (tipo === 'faltas') {
+                // Para faltas, usamos la API original ya que requiere lógica más compleja
+                cargarFaltasDesdeAPIOriginal(tipo, fecha, sedeId, establecimientoId);
+                return;
+            }
+            
+            // Guardar datos para exportación
+            attendanceData[tipo] = datosFiltrados;
+            
+            // Mostrar datos en la tabla
+            mostrarDatosEnTabla(tipo, datosFiltrados);
+        })
+        .catch(error => {
+            console.error(`Error al cargar datos de ${tipo}:`, error);
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Error al cargar datos: ${error.message}
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+// Función específica para cargar faltas desde la API original
+function cargarFaltasDesdeAPIOriginal(tipo, fecha, sedeId, establecimientoId) {
+    const tableBody = document.getElementById(`${tipo}-table-body`);
+    
+    // Construir la URL para la API original para faltas
     let apiUrl = `api/get-attendance-details.php?tipo=${tipo}&fecha=${fecha}`;
     if (establecimientoId) {
         apiUrl += `&establecimiento_id=${establecimientoId}`;
@@ -138,26 +208,14 @@ function mostrarModalAsistencias(tipo) {
         apiUrl += `&sede_id=${sedeId}`;
     }
     
-    // Depuración: mostrar URL completa
-    console.log('URL de la API:', apiUrl);
-    
-    // Cargar datos desde la API
     fetch(apiUrl)
         .then(response => {
-            // Depuración: mostrar información detallada de la respuesta
-            console.log('Status:', response.status);
-            console.log('Status text:', response.statusText);
-            console.log('Headers:', [...response.headers].map(([key, value]) => `${key}: ${value}`).join(', '));
-            
             if (!response.ok) {
                 throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
             }
             return response.json();
         })
         .then(data => {
-            // Depuración: ver los datos completos
-            console.log('Datos recibidos:', data);
-            
             if (!data.success) {
                 throw new Error(data.error || 'Error desconocido');
             }
@@ -178,9 +236,6 @@ function mostrarModalAsistencias(tipo) {
                     </td>
                 </tr>
             `;
-            
-            // Depuración: alerta para ver el error completo
-            alert(`Error completo: ${error}`);
         });
 }
 
@@ -206,7 +261,7 @@ function mostrarDatosEnTabla(tipo, datos) {
     
     // Mostrar datos según el tipo
     if (tipo === 'faltas') {
-        // Tabla para faltas
+        // Tabla para faltas (usa estructura de API original)
         datos.forEach(item => {
             tableBody.innerHTML += `
                 <tr>
@@ -219,31 +274,46 @@ function mostrarDatosEnTabla(tipo, datos) {
             `;
         });
     } else {
-        // Tabla para asistencias (temprano, a tiempo, tarde)
+        // Tabla para asistencias (temprano, a tiempo, tarde) - usa estructura de attendance/list.php
         datos.forEach(item => {
-            // Calcular diferencia de minutos para mostrar
-            let minutosDiferencia = item.MINUTOS_DIFERENCIA || 0;
-            let diferencia;
+            // Calcular diferencia de tiempo si existe información de horario
+            let diferencia = '';
             let claseBadge = tipo;
             
-            if (tipo === 'temprano') {
-                diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
-            } else if (tipo === 'aTiempo') {
-                if (minutosDiferencia > 0) {
-                    diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
-                } else {
-                    diferencia = `A tiempo`;
+            if (item.HORA_ENTRADA && item.hora) {
+                const horaEntrada = new Date(`2000-01-01 ${item.HORA_ENTRADA}`);
+                const horaReal = new Date(`2000-01-01 ${item.hora}`);
+                const diferenciaMs = horaEntrada.getTime() - horaReal.getTime();
+                const minutosDiferencia = Math.round(diferenciaMs / (1000 * 60));
+                
+                if (tipo === 'temprano') {
+                    diferencia = `${Math.abs(minutosDiferencia)} min antes`;
+                } else if (tipo === 'aTiempo') {
+                    if (minutosDiferencia > 0) {
+                        diferencia = `${Math.abs(minutosDiferencia)} min antes`;
+                    } else {
+                        diferencia = `A tiempo`;
+                    }
+                } else { // tarde
+                    diferencia = `${Math.abs(minutosDiferencia)} min tarde`;
                 }
-            } else { // tarde
-                diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min tarde`;
+            } else {
+                // Si no hay información de horario, usar tardanza
+                if (tipo === 'temprano') {
+                    diferencia = 'Temprano';
+                } else if (tipo === 'aTiempo') {
+                    diferencia = 'A tiempo';
+                } else {
+                    diferencia = 'Tarde';
+                }
             }
             
             tableBody.innerHTML += `
                 <tr>
-                    <td>${item.CODIGO || '-'}</td>
-                    <td>${(item.NOMBRE || '') + ' ' + (item.APELLIDO || '')}</td>
-                    <td>${item.ESTABLECIMIENTO || '-'}</td>
-                    <td>${formatearHora(item.ENTRADA_HORA) || '--:--'}</td>
+                    <td>${item.codigo_empleado || '-'}</td>
+                    <td>${item.nombre_empleado || '-'}</td>
+                    <td>${item.establecimiento || '-'}</td>
+                    <td>${formatearHora(item.hora) || '--:--'}</td>
                     <td><span class="status-badge ${claseBadge}">${diferencia}</span></td>
                 </tr>
             `;
