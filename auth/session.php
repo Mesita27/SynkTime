@@ -188,4 +188,41 @@ function hasRole($role) {
 function isAdmin() {
     return hasRole('ADMINISTRADOR');
 }
+
+/**
+ * Verifica si el usuario tiene acceso a un módulo específico
+ */
+function hasModuleAccess($module) {
+    if (!isAuthenticated()) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['rol'] ?? '';
+    
+    // Rol ASISTENCIA solo tiene acceso al módulo de asistencia
+    if ($userRole === 'ASISTENCIA') {
+        return $module === 'asistencia';
+    }
+    
+    // Otros roles tienen acceso completo por defecto
+    return true;
+}
+
+/**
+ * Requiere acceso específico a un módulo - redirige si no tiene permisos
+ */
+function requireModuleAccess($module) {
+    requireAuth(); // Primero verificar autenticación
+    
+    if (!hasModuleAccess($module)) {
+        // Si es rol ASISTENCIA y trata de acceder a otro módulo, redirigir a asistencia
+        if (hasRole('ASISTENCIA')) {
+            header('Location: attendance.php');
+        } else {
+            // Para otros casos, redirigir al dashboard
+            header('Location: dashboard.php');
+        }
+        exit;
+    }
+}
 ?>

@@ -1,6 +1,6 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+requireModuleAccess('asistencia'); // Verificar permisos para módulo de asistencia
 ?>
 <!DOCTYPE html>
 <html lang="es">

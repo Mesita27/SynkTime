@@ -17,8 +17,14 @@ $nombre = $_GET['nombre'] ?? null;
 $sede = $_GET['sede'] ?? null;
 $establecimiento = $_GET['establecimiento'] ?? null;
 
-// Empresa del usuario actual
+// Empresa del usuario actual y rol
 $empresaId = $_SESSION['id_empresa'] ?? 0;
+$userRole = $_SESSION['rol'] ?? '';
+
+// Para rol ASISTENCIA, forzar fecha actual
+if ($userRole === 'ASISTENCIA') {
+    $fecha = date('Y-m-d');
+}
 
 // Query base
 $sql = "SELECT 
