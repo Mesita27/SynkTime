@@ -740,8 +740,8 @@ async function loadEmployeesForEnrollment() {
     if (codigo) params.append('codigo', codigo);
     
     try {
-        // Use the attendance employees-available endpoint as it follows the correct schema
-        const response = await fetch(`api/attendance/employees-available.php?${params.toString()}`);
+        // Use the biometric summary endpoint instead of attendance employees
+        const response = await fetch(`api/biometric/summary.php?${params.toString()}`);
         const data = await response.json();
         
         tbody.innerHTML = '';
