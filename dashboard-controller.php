@@ -159,18 +159,35 @@ function getEstadisticasAsistencia($nivel, $id, $fecha) {
         $stmt2->execute([':emp' => $emp['ID_EMPLEADO'], ':fecha' => $fecha]);
         $asistencia = $stmt2->fetch(PDO::FETCH_ASSOC);
 
+        // Si no hay asistencia de entrada o no tiene horario definido, es falta
         if (!$asistencia || !$emp['HORA_ENTRADA']) {
             $faltas++;
         } else {
             $hEntrada = $emp['HORA_ENTRADA'];
             $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
             $hReal = $asistencia['HORA'];
+            
+            // Convertir horas a timestamps para comparación precisa
             $entradaMin = strtotime($fecha . ' ' . $hEntrada);
             $realMin = strtotime($fecha . ' ' . $hReal);
+            
+            // Calcular diferencia en minutos
+            $diferenciaMinutos = ($realMin - $entradaMin) / 60;
 
-            if ($realMin < $entradaMin) $tempranos++;
-            elseif ($realMin <= $entradaMin + $tolerancia * 60) $atiempo++;
-            else $tardanzas++;
+            // Lógica mejorada para determinar tipo de llegada:
+            // 1. Temprano: llegó antes de la hora programada
+            // 2. A tiempo: llegó en la hora programada o dentro de la tolerancia
+            // 3. Tarde: llegó después de la tolerancia
+            if ($diferenciaMinutos < 0) {
+                // Llegó antes de la hora programada
+                $tempranos++;
+            } elseif ($diferenciaMinutos <= $tolerancia) {
+                // Llegó a tiempo (dentro de la tolerancia)
+                $atiempo++;
+            } else {
+                // Llegó tarde (fuera de la tolerancia)
+                $tardanzas++;
+            }
 
             $total_asistencias++;
         }
@@ -326,18 +343,28 @@ function getDistribucionAsistenciasSede($sedeId, $fecha) {
         $faltas = 0;
         
         foreach ($empleados as $emp) {
+            // Si no hay asistencia de entrada o no tiene horario definido, es falta
             if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
                 $faltas++;
             } else {
                 $hEntrada = $emp['HORA_ENTRADA'];
                 $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
                 $hReal = $emp['entrada_hora'];
+                
+                // Convertir horas a timestamps para comparación precisa
                 $entradaMin = strtotime($fecha . ' ' . $hEntrada);
                 $realMin = strtotime($fecha . ' ' . $hReal);
                 
-                if ($realMin < $entradaMin) {
+                // Calcular diferencia en minutos
+                $diferenciaMinutos = ($realMin - $entradaMin) / 60;
+                
+                // Lógica consistente con getEstadisticasAsistencia:
+                // 1. Temprano: llegó antes de la hora programada
+                // 2. A tiempo: llegó en la hora programada o dentro de la tolerancia
+                // 3. Tarde: llegó después de la tolerancia
+                if ($diferenciaMinutos < 0) {
                     $llegadas_temprano++;
-                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                } elseif ($diferenciaMinutos <= $tolerancia) {
                     $llegadas_tiempo++;
                 } else {
                     $llegadas_tarde++;
@@ -398,18 +425,28 @@ function getDistribucionAsistenciasEstablecimiento($establecimientoId, $fecha) {
         $faltas = 0;
         
         foreach ($empleados as $emp) {
+            // Si no hay asistencia de entrada o no tiene horario definido, es falta
             if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
                 $faltas++;
             } else {
                 $hEntrada = $emp['HORA_ENTRADA'];
                 $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
                 $hReal = $emp['entrada_hora'];
+                
+                // Convertir horas a timestamps para comparación precisa
                 $entradaMin = strtotime($fecha . ' ' . $hEntrada);
                 $realMin = strtotime($fecha . ' ' . $hReal);
                 
-                if ($realMin < $entradaMin) {
+                // Calcular diferencia en minutos
+                $diferenciaMinutos = ($realMin - $entradaMin) / 60;
+                
+                // Lógica consistente con getEstadisticasAsistencia:
+                // 1. Temprano: llegó antes de la hora programada
+                // 2. A tiempo: llegó en la hora programada o dentro de la tolerancia
+                // 3. Tarde: llegó después de la tolerancia
+                if ($diferenciaMinutos < 0) {
                     $llegadas_temprano++;
-                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                } elseif ($diferenciaMinutos <= $tolerancia) {
                     $llegadas_tiempo++;
                 } else {
                     $llegadas_tarde++;
@@ -544,18 +581,28 @@ function getDistribucionAsistencias($empresaId, $fecha) {
         $faltas = 0;
         
         foreach ($empleados as $emp) {
+            // Si no hay asistencia de entrada o no tiene horario definido, es falta
             if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
                 $faltas++;
             } else {
                 $hEntrada = $emp['HORA_ENTRADA'];
                 $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
                 $hReal = $emp['entrada_hora'];
+                
+                // Convertir horas a timestamps para comparación precisa
                 $entradaMin = strtotime($fecha . ' ' . $hEntrada);
                 $realMin = strtotime($fecha . ' ' . $hReal);
                 
-                if ($realMin < $entradaMin) {
+                // Calcular diferencia en minutos
+                $diferenciaMinutos = ($realMin - $entradaMin) / 60;
+                
+                // Lógica consistente con getEstadisticasAsistencia:
+                // 1. Temprano: llegó antes de la hora programada
+                // 2. A tiempo: llegó en la hora programada o dentro de la tolerancia
+                // 3. Tarde: llegó después de la tolerancia
+                if ($diferenciaMinutos < 0) {
                     $llegadas_temprano++;
-                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                } elseif ($diferenciaMinutos <= $tolerancia) {
                     $llegadas_tiempo++;
                 } else {
                     $llegadas_tarde++;
@@ -631,28 +678,106 @@ function getActividadRecienteSede($sedeId, $fecha = null, $limit = 10) {
 }
 
 /**
- * Determina si una llegada es tardía según el horario del empleado
+ * Determina el tipo de llegada basado en horario y tolerancia (mejorado)
  * 
- * @param int $idEmpleado ID del empleado
- * @param string $hora Hora en formato HH:MM
- * @param string $fecha Fecha en formato Y-m-d
- * @return bool True si es tardanza, false si no
+ * @param string $horaEntrada Hora programada de entrada (HH:MM:SS)
+ * @param string $horaReal Hora real de llegada (HH:MM:SS)
+ * @param int $tolerancia Tolerancia en minutos
+ * @param string $fecha Fecha para el cálculo
+ * @return string 'temprano', 'atiempo', 'tarde'
  */
-function esTardanza($idEmpleado, $hora, $fecha) {
-    $horario = getHorarioEmpleado($idEmpleado, $fecha);
-    if (!$horario) return false;
+function calcularTipoLlegada($horaEntrada, $horaReal, $tolerancia, $fecha) {
+    if (!$horaEntrada || !$horaReal) {
+        return 'falta';
+    }
     
-    // Convertir a minutos para comparación numérica
-    $horaEntradaPartes = explode(':', $horario['HORA_ENTRADA']);
-    $minutosHoraEntrada = (int)$horaEntradaPartes[0] * 60 + (int)$horaEntradaPartes[1];
+    // Convertir a timestamps para comparación precisa
+    $entradaMin = strtotime($fecha . ' ' . $horaEntrada);
+    $realMin = strtotime($fecha . ' ' . $horaReal);
     
-    $horaLlegadaPartes = explode(':', $hora);
-    $minutosHoraLlegada = (int)$horaLlegadaPartes[0] * 60 + (int)$horaLlegadaPartes[1];
+    // Calcular diferencia en minutos
+    $diferenciaMinutos = ($realMin - $entradaMin) / 60;
     
-    // Considerar tolerancia
-    $toleranciaMinutos = (int)$horario['TOLERANCIA'];
+    // Determinar tipo según lógica mejorada:
+    if ($diferenciaMinutos < 0) {
+        // Llegó antes de la hora programada
+        return 'temprano';
+    } elseif ($diferenciaMinutos <= $tolerancia) {
+        // Llegó a tiempo (dentro de la tolerancia)
+        return 'atiempo';
+    } else {
+        // Llegó tarde (fuera de la tolerancia)
+        return 'tarde';
+    }
+}
+
+/**
+ * Actualiza el campo TARDANZA en la tabla ASISTENCIA basado en la nueva lógica
+ * Esta función puede ser llamada para sincronizar datos existentes
+ * 
+ * @param string $fecha Fecha para actualizar (opcional, por defecto fecha actual)
+ */
+function actualizarTardanzasEnAsistencia($fecha = null) {
+    global $conn;
     
-    return $minutosHoraLlegada > ($minutosHoraEntrada + $toleranciaMinutos);
+    if (!$fecha) {
+        $fecha = date('Y-m-d');
+    }
+    
+    try {
+        // Obtener todas las asistencias de entrada de la fecha
+        $stmt = $conn->prepare("
+            SELECT 
+                a.ID_ASISTENCIA,
+                a.ID_EMPLEADO,
+                a.HORA,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
+            FROM ASISTENCIA a
+            INNER JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
+                AND a.FECHA BETWEEN eh.FECHA_DESDE AND IFNULL(eh.FECHA_HASTA, '9999-12-31')
+            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
+            WHERE a.FECHA = :fecha
+            AND a.TIPO = 'ENTRADA'
+            AND e.ACTIVO = 'S'
+            AND h.HORA_ENTRADA IS NOT NULL
+        ");
+        
+        $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Actualizar cada asistencia
+        foreach ($asistencias as $asistencia) {
+            $tipoLlegada = calcularTipoLlegada(
+                $asistencia['HORA_ENTRADA'],
+                $asistencia['HORA'],
+                (int)($asistencia['TOLERANCIA'] ?? 0),
+                $fecha
+            );
+            
+            // Actualizar campo TARDANZA: 'S' para tarde, 'N' para otros
+            $tardanza = ($tipoLlegada === 'tarde') ? 'S' : 'N';
+            
+            $updateStmt = $conn->prepare("
+                UPDATE ASISTENCIA 
+                SET TARDANZA = :tardanza 
+                WHERE ID_ASISTENCIA = :id
+            ");
+            
+            $updateStmt->bindParam(':tardanza', $tardanza, PDO::PARAM_STR);
+            $updateStmt->bindParam(':id', $asistencia['ID_ASISTENCIA'], PDO::PARAM_INT);
+            $updateStmt->execute();
+        }
+        
+        return true;
+        
+    } catch (PDOException $e) {
+        error_log("Error al actualizar tardanzas: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**

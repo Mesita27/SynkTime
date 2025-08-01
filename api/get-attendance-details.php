@@ -88,12 +88,15 @@ try {
             FROM EMPLEADO E
             INNER JOIN ESTABLECIMIENTO EST ON E.ID_ESTABLECIMIENTO = EST.ID_ESTABLECIMIENTO
             INNER JOIN SEDE S ON EST.ID_SEDE = S.ID_SEDE
-            LEFT JOIN EMPLEADO_HORARIO EH ON E.ID_EMPLEADO = EH.ID_EMPLEADO AND :fecha BETWEEN EH.FECHA_DESDE AND IFNULL(EH.FECHA_HASTA, '9999-12-31')
+            LEFT JOIN EMPLEADO_HORARIO EH ON E.ID_EMPLEADO = EH.ID_EMPLEADO 
+                AND :fecha BETWEEN EH.FECHA_DESDE AND IFNULL(EH.FECHA_HASTA, '9999-12-31')
             LEFT JOIN HORARIO H ON EH.ID_HORARIO = H.ID_HORARIO
-            LEFT JOIN ASISTENCIA A ON E.ID_EMPLEADO = A.ID_EMPLEADO AND A.FECHA = :fecha AND A.TIPO = 'ENTRADA'
+            LEFT JOIN ASISTENCIA A ON E.ID_EMPLEADO = A.ID_EMPLEADO 
+                AND A.FECHA = :fecha AND A.TIPO = 'ENTRADA'
             WHERE E.ACTIVO = 'S'
+            AND E.ESTADO = 'A'
             AND $whereClause
-            AND A.ID_ASISTENCIA IS NULL  -- No registró asistencia
+            AND A.ID_ASISTENCIA IS NULL  -- No registró asistencia de entrada
             ORDER BY E.NOMBRE, E.APELLIDO
         ";
     } else {
@@ -102,14 +105,15 @@ try {
         $tipoCondition = '';
         
         if ($tipo === 'temprano') {
-            // Llegó temprano: antes de la hora de entrada y sin tardanza
-            $tipoCondition = "AND A.TARDANZA = 'N' AND CAST(A.HORA AS TIME) < CAST(H.HORA_ENTRADA AS TIME)";
+            // Llegó temprano: antes de la hora de entrada
+            $tipoCondition = "AND CAST(A.HORA AS TIME) < CAST(H.HORA_ENTRADA AS TIME)";
         } else if ($tipo === 'aTiempo') {
-            // Llegó a tiempo: sin tardanza y en el margen de la hora
-            $tipoCondition = "AND A.TARDANZA = 'N' AND CAST(A.HORA AS TIME) >= CAST(H.HORA_ENTRADA AS TIME)";
+            // Llegó a tiempo: en la hora de entrada o dentro de la tolerancia
+            $tipoCondition = "AND CAST(A.HORA AS TIME) >= CAST(H.HORA_ENTRADA AS TIME) 
+                               AND TIME_TO_SEC(TIMEDIFF(A.HORA, H.HORA_ENTRADA)) <= (H.TOLERANCIA * 60)";
         } else if ($tipo === 'tarde') {
-            // Llegó tarde: con tardanza
-            $tipoCondition = "AND A.TARDANZA = 'S'";
+            // Llegó tarde: fuera de la tolerancia
+            $tipoCondition = "AND TIME_TO_SEC(TIMEDIFF(A.HORA, H.HORA_ENTRADA)) > (H.TOLERANCIA * 60)";
         }
         
         $query = "
@@ -122,16 +126,19 @@ try {
                 A.HORA AS ENTRADA_HORA,
                 H.HORA_ENTRADA AS HORARIO_ENTRADA,
                 H.TOLERANCIA,
-                TIME_TO_SEC(TIMEDIFF(H.HORA_ENTRADA, A.HORA))/60 AS MINUTOS_DIFERENCIA
+                TIME_TO_SEC(TIMEDIFF(A.HORA, H.HORA_ENTRADA))/60 AS MINUTOS_DIFERENCIA
             FROM ASISTENCIA A
             INNER JOIN EMPLEADO E ON A.ID_EMPLEADO = E.ID_EMPLEADO
             INNER JOIN ESTABLECIMIENTO EST ON E.ID_ESTABLECIMIENTO = EST.ID_ESTABLECIMIENTO
             INNER JOIN SEDE S ON EST.ID_SEDE = S.ID_SEDE
-            LEFT JOIN EMPLEADO_HORARIO EH ON E.ID_EMPLEADO = EH.ID_EMPLEADO AND A.FECHA BETWEEN EH.FECHA_DESDE AND IFNULL(EH.FECHA_HASTA, '9999-12-31')
+            LEFT JOIN EMPLEADO_HORARIO EH ON E.ID_EMPLEADO = EH.ID_EMPLEADO 
+                AND A.FECHA BETWEEN EH.FECHA_DESDE AND IFNULL(EH.FECHA_HASTA, '9999-12-31')
             LEFT JOIN HORARIO H ON EH.ID_HORARIO = H.ID_HORARIO
             WHERE A.FECHA = :fecha
             AND A.TIPO = 'ENTRADA'
+            AND E.ACTIVO = 'S'
             AND $whereClause
+            AND H.HORA_ENTRADA IS NOT NULL
             $tipoCondition
             ORDER BY E.NOMBRE, E.APELLIDO
         ";
