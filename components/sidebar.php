@@ -1,3 +1,6 @@
+<?php
+require_once __DIR__ . '/../auth/authorization.php';
+?>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo-container">
@@ -7,6 +10,7 @@
     </div>
     
     <nav class="nav-menu">
+        <?php if (isOwnerManager()): ?>
         <div class="nav-section">
             <div class="nav-section-title">Principal</div>
             <ul class="nav-items">
@@ -54,5 +58,18 @@
                 </li>
             </ul>
         </div>
+        <?php elseif (isAttendanceUser()): ?>
+        <div class="nav-section">
+            <div class="nav-section-title">Asistencia</div>
+            <ul class="nav-items">
+                <li class="nav-item">
+                    <a href="attendance.php" class="nav-link<?php if(basename($_SERVER['PHP_SELF']) == 'attendance.php') echo ' active'; ?>">
+                        <i class="fas fa-clock"></i>
+                        <span>Registro de Asistencia</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <?php endif; ?>
     </nav>
 </aside>

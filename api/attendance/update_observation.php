@@ -1,9 +1,16 @@
 <?php
 require_once __DIR__ . '/../../auth/session.php';
+require_once __DIR__ . '/../../auth/authorization.php';
 requireAuth();
 require_once __DIR__ . '/../../config/database.php';
 
 header('Content-Type: application/json');
+
+// Verificar permisos de rol - Solo gerentes pueden editar observaciones
+if (!isOwnerManager()) {
+    echo json_encode(['success' => false, 'message' => 'Sin permisos para editar observaciones']);
+    exit;
+}
 
 // Establecer zona horaria de Colombia
 date_default_timezone_set('America/Bogota');

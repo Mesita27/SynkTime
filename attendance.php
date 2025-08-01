@@ -1,6 +1,7 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+require_once 'auth/authorization.php';
+requirePageAccess(); // Esto reemplaza requireAuth() y agrega verificación de rol
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -26,13 +27,17 @@ requireAuth();
         <?php include 'components/header.php'; ?>
         <main class="main-content">
             <div class="attendance-header">
-                <h2 class="page-title"><i class="fas fa-calendar-check"></i> Asistencias</h2>
+                <h2 class="page-title">
+                    <i class="fas fa-calendar-check"></i> 
+                    <?php echo isAttendanceUser() ? 'Registro de Asistencia - Hoy' : 'Asistencias'; ?>
+                </h2>
                 <button type="button" class="btn-primary" onclick="openAttendanceRegisterModal()">
                     <i class="fas fa-plus"></i> Registrar Asistencia
                 </button>
             </div>
             
-            <!-- Formulario de búsqueda estilizado -->
+            <?php if (isOwnerManager()): ?>
+            <!-- Formulario de búsqueda estilizado - Solo para gerentes -->
             <div class="attendance-query-box">
                 <form id="filtrosForm" class="attendance-query-form" autocomplete="off">
                     <div class="query-row">
@@ -59,6 +64,15 @@ requireAuth();
                     </div>
                 </form>
             </div>
+            <?php elseif (isAttendanceUser()): ?>
+            <!-- Información para usuarios de asistencia -->
+            <div class="attendance-info-box">
+                <div class="info-message">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Mostrando únicamente las asistencias registradas el día de hoy: <?php echo date('d/m/Y'); ?></span>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <!-- Los controles de paginación se insertan aquí automáticamente -->
             
@@ -90,6 +104,16 @@ requireAuth();
             <?php include 'components/biometric_modals.php'; ?>
         </main>
     </div>
+</div>
+<script>
+// Variables globales para el rol del usuario
+window.userRole = '<?php echo $_SESSION['rol'] ?? ''; ?>';
+window.isOwnerManager = <?php echo isOwnerManager() ? 'true' : 'false'; ?>;
+window.isAttendanceUser = <?php echo isAttendanceUser() ? 'true' : 'false'; ?>;
+</script>
+<script src="assets/js/layout.js"></script>
+<script src="assets/js/attendance.js"></script>
+</body>
 </div>
 <script src="assets/js/layout.js"></script>
 <script src="assets/js/attendance.js"></script>

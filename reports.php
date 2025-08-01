@@ -1,6 +1,7 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+require_once 'auth/authorization.php';
+requirePageAccess();
 ?>
 <!DOCTYPE html>
 <html lang="es">
