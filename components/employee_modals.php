@@ -63,6 +63,9 @@
       </div>
       <div class="form-actions">
         <button type="submit" class="btn-primary" id="employeeModalSubmitBtn">Registrar</button>
+        <button type="button" class="btn-info" id="biometricEnrollmentBtn" style="display:none;">
+          <i class="fas fa-fingerprint"></i> Registro Biométrico
+        </button>
         <button type="button" class="btn-secondary" id="cancelEmployeeModal">Cancelar</button>
       </div>
       <div id="employeeFormError" style="color:#e53e3e;text-align:center;margin-top:10px;display:none;"></div>
@@ -84,3 +87,5 @@
     </div>
   </div>
 </div>
+
+<?php include 'biometric_enrollment_modal.php'; ?>

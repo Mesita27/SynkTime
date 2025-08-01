@@ -32,6 +32,8 @@ try {
             e.FECHA_INGRESO,
             e.ESTADO,
             e.ACTIVO,
+            e.FACIAL_RECOGNITION_ENABLED,
+            e.FINGERPRINT_ENABLED,
             est.NOMBRE AS ESTABLECIMIENTO,
             est.ID_ESTABLECIMIENTO,
             s.NOMBRE AS SEDE,
