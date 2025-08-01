@@ -81,7 +81,16 @@ class Dashboard {
                 type: 'area',
                 height: 350,
                 toolbar: { show: false },
-                animations: { enabled: true, easing: 'easeinout', speed: 800 }
+                animations: { enabled: true, easing: 'easeinout', speed: 800 },
+                events: {
+                    dataPointSelection: function(event, chartContext, config) {
+                        // Al hacer clic en cualquier punto del gráfico de horas, mostrar todas las entradas del día
+                        if (window.mostrarModalAsistencias) {
+                            // Puedes mostrar un modal general o uno específico - aquí mostramos "a tiempo" por defecto
+                            window.mostrarModalAsistencias('aTiempo');
+                        }
+                    }
+                }
             },
             colors: ['#4B96FA'],
             fill: {
@@ -182,7 +191,17 @@ class Dashboard {
     updateCharts(hourlyData, distributionData) {
         if (this.attendanceByHourChart) {
             this.attendanceByHourChart.updateOptions({
-                xaxis: { categories: hourlyData.categories || [] }
+                xaxis: { categories: hourlyData.categories || [] },
+                chart: {
+                    events: {
+                        dataPointSelection: function(event, chartContext, config) {
+                            // Al hacer clic en cualquier punto del gráfico de horas, mostrar todas las entradas del día
+                            if (window.mostrarModalAsistencias) {
+                                window.mostrarModalAsistencias('aTiempo');
+                            }
+                        }
+                    }
+                }
             });
             this.attendanceByHourChart.updateSeries([{
                 name: 'Entradas',
