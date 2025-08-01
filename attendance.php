@@ -93,6 +93,7 @@ requireModuleAccess('asistencia'); // Verificar permisos para módulo de asisten
 </div>
 <script src="assets/js/layout.js"></script>
 <script src="assets/js/attendance.js"></script>
+<script src="assets/js/biometric-apis.js"></script>
 <script src="assets/js/biometric.js"></script>
 </body>
 </html>

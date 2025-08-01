@@ -143,6 +143,7 @@ requireAuth();
     </div>
 </div>
 <script src="assets/js/layout.js"></script>
+<script src="assets/js/biometric-apis.js"></script>
 <script src="assets/js/biometric.js"></script>
 <script src="assets/js/biometric-enrollment-page.js"></script>
 </body>
