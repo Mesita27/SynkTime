@@ -97,19 +97,20 @@ try {
             ORDER BY E.NOMBRE, E.APELLIDO
         ";
     } else {
-        // Para los otros tipos (temprano, a tiempo, tarde)
-        // Determinamos la condición específica según el tipo
+        // Para los otros tipos (temprano, a tiempo, tarde) - basado únicamente en registros ENTRADA
+        // Usar ID_HORARIO de la tabla ASISTENCIA en lugar del horario del empleado
         $tipoCondition = '';
         
         if ($tipo === 'temprano') {
-            // Llegó temprano: antes de la hora de entrada y sin tardanza
-            $tipoCondition = "AND A.TARDANZA = 'N' AND CAST(A.HORA AS TIME) < CAST(H.HORA_ENTRADA AS TIME)";
+            // Llegó temprano: antes de la hora de entrada
+            $tipoCondition = "AND CAST(A.HORA AS TIME) < CAST(H.HORA_ENTRADA AS TIME)";
         } else if ($tipo === 'aTiempo') {
-            // Llegó a tiempo: sin tardanza y en el margen de la hora
-            $tipoCondition = "AND A.TARDANZA = 'N' AND CAST(A.HORA AS TIME) >= CAST(H.HORA_ENTRADA AS TIME)";
+            // Llegó a tiempo: en el horario programado (con tolerancia)
+            $tipoCondition = "AND CAST(A.HORA AS TIME) >= CAST(H.HORA_ENTRADA AS TIME) 
+                              AND CAST(A.HORA AS TIME) <= ADDTIME(CAST(H.HORA_ENTRADA AS TIME), SEC_TO_TIME(IFNULL(H.TOLERANCIA, 0) * 60))";
         } else if ($tipo === 'tarde') {
-            // Llegó tarde: con tardanza
-            $tipoCondition = "AND A.TARDANZA = 'S'";
+            // Llegó tarde: después de la hora de entrada más tolerancia
+            $tipoCondition = "AND CAST(A.HORA AS TIME) > ADDTIME(CAST(H.HORA_ENTRADA AS TIME), SEC_TO_TIME(IFNULL(H.TOLERANCIA, 0) * 60))";
         }
         
         $query = "
@@ -127,8 +128,7 @@ try {
             INNER JOIN EMPLEADO E ON A.ID_EMPLEADO = E.ID_EMPLEADO
             INNER JOIN ESTABLECIMIENTO EST ON E.ID_ESTABLECIMIENTO = EST.ID_ESTABLECIMIENTO
             INNER JOIN SEDE S ON EST.ID_SEDE = S.ID_SEDE
-            LEFT JOIN EMPLEADO_HORARIO EH ON E.ID_EMPLEADO = EH.ID_EMPLEADO AND A.FECHA BETWEEN EH.FECHA_DESDE AND IFNULL(EH.FECHA_HASTA, '9999-12-31')
-            LEFT JOIN HORARIO H ON EH.ID_HORARIO = H.ID_HORARIO
+            LEFT JOIN HORARIO H ON A.ID_HORARIO = H.ID_HORARIO
             WHERE A.FECHA = :fecha
             AND A.TIPO = 'ENTRADA'
             AND $whereClause

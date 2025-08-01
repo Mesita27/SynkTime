@@ -99,9 +99,11 @@ function getEstablecimientosByEmpresa($empresaId, $sedeId = null) {
 }
 
 /**
- * Obtiene las estadísticas de asistencia para un establecimiento en una fecha
+ * Obtiene las estadísticas de asistencia basadas únicamente en registros de tipo ENTRADA
+ * Usa el ID_HORARIO vinculado en la tabla ASISTENCIA para los cálculos
  * 
- * @param int $establecimientoId ID del establecimiento
+ * @param string $nivel Nivel de filtro: 'empresa', 'sede', 'establecimiento'
+ * @param int $id ID del nivel seleccionado
  * @param string $fecha Fecha en formato Y-m-d
  * @return array Estadísticas de asistencia
  */
@@ -123,80 +125,86 @@ function getEstadisticasAsistencia($nivel, $id, $fecha) {
                  JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE";
     }
 
-    // Traer todos los empleados activos y su horario vigente ese día
+    // Obtener todos los empleados activos en el nivel seleccionado
     $stmt = $conn->prepare("
-        SELECT e.ID_EMPLEADO, h.HORA_ENTRADA, h.HORA_SALIDA, h.TOLERANCIA
+        SELECT e.ID_EMPLEADO
         FROM EMPLEADO e
         $join
-        LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
-            AND eh.FECHA_DESDE <= :fecha
-            AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
-        LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
         WHERE $where
         AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
     ");
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
     $stmt->execute();
     $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Inicializa métricas
     $total_empleados = count($empleados);
+
+    // Obtener todas las asistencias de tipo ENTRADA para la fecha y el nivel especificado
+    $stmt = $conn->prepare("
+        SELECT 
+            a.ID_EMPLEADO,
+            a.HORA as hora_entrada,
+            a.TARDANZA,
+            h.HORA_ENTRADA as horario_entrada,
+            h.HORA_SALIDA as horario_salida,
+            h.TOLERANCIA
+        FROM ASISTENCIA a
+        JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+        $join
+        LEFT JOIN HORARIO h ON a.ID_HORARIO = h.ID_HORARIO
+        WHERE a.FECHA = :fecha
+        AND a.TIPO = 'ENTRADA'
+        AND $where
+        AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
+        ORDER BY a.HORA ASC
+    ");
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+    $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+    $stmt->execute();
+    $asistencias_entrada = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Inicializar contadores
     $tempranos = 0;
     $atiempo = 0;
     $tardanzas = 0;
-    $faltas = 0;
-    $salidas_temprano = 0;
-    $salidas_atiempo = 0;
-    $salidas_tarde = 0;
-    $total_asistencias = 0;
-    $total_salidas = 0;
-    $horas_trabajadas = 0;
+    $empleados_asistieron = [];
 
-    foreach ($empleados as $emp) {
-        // --- ENTRADA ---
-        $stmt2 = $conn->prepare("SELECT HORA FROM ASISTENCIA WHERE ID_EMPLEADO = :emp AND FECHA = :fecha AND TIPO='ENTRADA' ORDER BY HORA ASC LIMIT 1");
-        $stmt2->execute([':emp' => $emp['ID_EMPLEADO'], ':fecha' => $fecha]);
-        $asistencia = $stmt2->fetch(PDO::FETCH_ASSOC);
-
-        if (!$asistencia || !$emp['HORA_ENTRADA']) {
-            $faltas++;
-        } else {
-            $hEntrada = $emp['HORA_ENTRADA'];
-            $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
-            $hReal = $asistencia['HORA'];
-            $entradaMin = strtotime($fecha . ' ' . $hEntrada);
-            $realMin = strtotime($fecha . ' ' . $hReal);
-
-            if ($realMin < $entradaMin) $tempranos++;
-            elseif ($realMin <= $entradaMin + $tolerancia * 60) $atiempo++;
-            else $tardanzas++;
-
-            $total_asistencias++;
+    // Procesar las asistencias de entrada para determinar clasificación
+    foreach ($asistencias_entrada as $asistencia) {
+        $empleados_asistieron[] = $asistencia['ID_EMPLEADO'];
+        
+        if (!$asistencia['horario_entrada']) {
+            // Si no tiene horario asignado, considerarlo a tiempo
+            $atiempo++;
+            continue;
         }
 
-        // --- SALIDA ---
-        $stmt3 = $conn->prepare("SELECT HORA FROM ASISTENCIA WHERE ID_EMPLEADO = :emp AND FECHA = :fecha AND TIPO='SALIDA' ORDER BY HORA DESC LIMIT 1");
-        $stmt3->execute([':emp' => $emp['ID_EMPLEADO'], ':fecha' => $fecha]);
-        $salida = $stmt3->fetch(PDO::FETCH_ASSOC);
+        $hora_entrada_horario = $asistencia['horario_entrada'];
+        $hora_entrada_real = $asistencia['hora_entrada'];
+        $tolerancia = (int)($asistencia['TOLERANCIA'] ?? 0);
 
-        if ($asistencia && $salida && $emp['HORA_SALIDA']) {
-            $hSalida = $emp['HORA_SALIDA'];
-            $realSalida = $salida['HORA'];
-            $salidaMin = strtotime($fecha . ' ' . $hSalida);
-            $realSalidaMin = strtotime($fecha . ' ' . $realSalida);
-            $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
+        // Convertir a timestamps para comparar
+        $entrada_programada = strtotime($fecha . ' ' . $hora_entrada_horario);
+        $entrada_real = strtotime($fecha . ' ' . $hora_entrada_real);
 
-            if ($realSalidaMin < $salidaMin - $tolerancia*60) $salidas_temprano++;
-            elseif ($realSalidaMin <= $salidaMin + $tolerancia*60) $salidas_atiempo++;
-            else $salidas_tarde++;
-
-            // --- Horas trabajadas ---
-            $minTr = ($realSalidaMin - $realMin) / 60;
-            if ($minTr > 0 && $minTr < 24*60) $horas_trabajadas += $minTr / 60;
-            $total_salidas++;
+        if ($entrada_real < $entrada_programada) {
+            // Llegó temprano
+            $tempranos++;
+        } elseif ($entrada_real <= $entrada_programada + ($tolerancia * 60)) {
+            // Llegó a tiempo (dentro de la tolerancia)
+            $atiempo++;
+        } else {
+            // Llegó tarde
+            $tardanzas++;
         }
     }
+
+    // Calcular faltas (empleados que no registraron entrada)
+    $empleados_ids = array_column($empleados, 'ID_EMPLEADO');
+    $empleados_asistieron_unique = array_unique($empleados_asistieron);
+    $faltas = $total_empleados - count($empleados_asistieron_unique);
+
+    // Calcular horas trabajadas totales del día
+    $horas_trabajadas = calcularHorasTrabajadas($nivel, $id, $fecha);
 
     return [
         'total_empleados'      => $total_empleados,
@@ -204,25 +212,109 @@ function getEstadisticasAsistencia($nivel, $id, $fecha) {
         'llegadas_tiempo'      => $atiempo,
         'llegadas_tarde'       => $tardanzas,
         'faltas'               => $faltas,
-        'salidas_temprano'     => $salidas_temprano,
-        'salidas_atiempo'      => $salidas_atiempo,
-        'salidas_tarde'        => $salidas_tarde,
-        'total_asistencias'    => $total_asistencias,
-        'total_salidas'        => $total_salidas,
+        'total_asistencias'    => count($empleados_asistieron_unique),
         'horas_trabajadas'     => round($horas_trabajadas, 2)
     ];
+}
+
+/**
+ * Calcula las horas trabajadas totales en el día considerando entradas y salidas
+ * 
+ * @param string $nivel Nivel de filtro: 'empresa', 'sede', 'establecimiento'
+ * @param int $id ID del nivel seleccionado
+ * @param string $fecha Fecha en formato Y-m-d
+ * @return float Total de horas trabajadas
+ */
+function calcularHorasTrabajadas($nivel, $id, $fecha) {
+    global $conn;
+
+    // Construcción del filtro y joins según nivel
+    if ($nivel === 'empresa') {
+        $where = "s.ID_EMPRESA = :id";
+        $join = "JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO 
+                 JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE";
+    } elseif ($nivel === 'sede') {
+        $where = "s.ID_SEDE = :id";
+        $join = "JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO 
+                 JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE";
+    } else { // establecimiento
+        $where = "est.ID_ESTABLECIMIENTO = :id";
+        $join = "JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO 
+                 JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE";
+    }
+
+    // Obtener todas las asistencias del día (entradas y salidas) por empleado
+    $stmt = $conn->prepare("
+        SELECT 
+            a.ID_EMPLEADO,
+            a.TIPO,
+            a.HORA
+        FROM ASISTENCIA a
+        JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+        $join
+        WHERE a.FECHA = :fecha
+        AND $where
+        AND e.ESTADO = 'A' AND e.ACTIVO = 'S'
+        ORDER BY a.ID_EMPLEADO, a.HORA
+    ");
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+    $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
+    $stmt->execute();
+    $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $horas_trabajadas_total = 0;
+    $empleados_asistencias = [];
+
+    // Agrupar asistencias por empleado
+    foreach ($asistencias as $asistencia) {
+        $empleados_asistencias[$asistencia['ID_EMPLEADO']][] = $asistencia;
+    }
+
+    // Calcular horas trabajadas para cada empleado
+    foreach ($empleados_asistencias as $id_empleado => $asistencias_empleado) {
+        $entradas = [];
+        $salidas = [];
+
+        // Separar entradas y salidas
+        foreach ($asistencias_empleado as $asistencia) {
+            if ($asistencia['TIPO'] === 'ENTRADA') {
+                $entradas[] = $asistencia['HORA'];
+            } else {
+                $salidas[] = $asistencia['HORA'];
+            }
+        }
+
+        // Calcular horas trabajadas emparejando entradas con salidas
+        $horas_empleado = 0;
+        for ($i = 0; $i < count($entradas); $i++) {
+            if (isset($salidas[$i])) {
+                $entrada = strtotime($fecha . ' ' . $entradas[$i]);
+                $salida = strtotime($fecha . ' ' . $salidas[$i]);
+                
+                if ($salida > $entrada) {
+                    $minutos_trabajados = ($salida - $entrada) / 60;
+                    $horas_empleado += $minutos_trabajados / 60;
+                }
+            }
+        }
+
+        $horas_trabajadas_total += $horas_empleado;
+    }
+
+    return $horas_trabajadas_total;
 }
 
 
 /**
  * Obtiene datos para el gráfico de asistencias por hora (específico del establecimiento)
+ * Basado únicamente en registros de tipo ENTRADA
  * 
  * @param int $establecimientoId ID del establecimiento
  * @param string $fecha Fecha en formato Y-m-d
  * @return array Datos para el gráfico
  */
 
- // SEDE: Entradas por hora en una sede
+// SEDE: Entradas por hora en una sede
 function getAsistenciasPorHoraSede($sedeId, $fecha) {
     global $conn;
     $stmt = $conn->prepare("
@@ -281,69 +373,87 @@ function getAsistenciasPorHoraEstablecimiento($establecimientoId, $fecha) {
 
 
 /**
- * Obtiene datos para el gráfico de distribución de asistencias (específico del establecimiento)
+ * Obtiene datos para el gráfico de distribución de asistencias basado únicamente en registros ENTRADA
+ * Usa el ID_HORARIO vinculado en la tabla ASISTENCIA
  * 
- * @param int $establecimientoId ID del establecimiento
+ * @param int $sedeId ID de la sede
  * @param string $fecha Fecha en formato Y-m-d
  * @return array Datos para el gráfico
  */
-
 
 // SEDE: [Tempranos, A tiempo, Tardanzas, Faltas]
 function getDistribucionAsistenciasSede($sedeId, $fecha) {
     global $conn;
     
     try {
-        // Get early arrivals, on-time arrivals, and late arrivals for sede
+        // Obtener todos los empleados activos de la sede
         $stmt = $conn->prepare("
-            SELECT 
-                e.ID_EMPLEADO,
-                a.HORA as entrada_hora,
-                a.TARDANZA,
-                h.HORA_ENTRADA,
-                h.TOLERANCIA
+            SELECT e.ID_EMPLEADO
             FROM EMPLEADO e
             JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
-            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
-                AND eh.FECHA_DESDE <= :fecha
-                AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
-            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
             WHERE est.ID_SEDE = :sedeId
             AND e.ESTADO = 'A'
             AND e.ACTIVO = 'S'
         ");
-        
+        $stmt->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
+        $stmt->execute();
+        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $total_empleados = count($empleados);
+
+        // Obtener asistencias de ENTRADA para la fecha usando ID_HORARIO de la tabla ASISTENCIA
+        $stmt = $conn->prepare("
+            SELECT 
+                a.ID_EMPLEADO,
+                a.HORA as entrada_hora,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
+            FROM ASISTENCIA a
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            LEFT JOIN HORARIO h ON a.ID_HORARIO = h.ID_HORARIO
+            WHERE est.ID_SEDE = :sedeId
+            AND a.FECHA = :fecha
+            AND a.TIPO = 'ENTRADA'
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
+        ");
         $stmt->bindParam(':sedeId', $sedeId, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->execute();
-        
-        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $llegadas_temprano = 0;
         $llegadas_tiempo = 0;
         $llegadas_tarde = 0;
-        $faltas = 0;
+        $empleados_asistieron = [];
         
-        foreach ($empleados as $emp) {
-            if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
-                $faltas++;
+        foreach ($asistencias as $asistencia) {
+            $empleados_asistieron[] = $asistencia['ID_EMPLEADO'];
+            
+            if (!$asistencia['HORA_ENTRADA']) {
+                // Si no tiene horario asignado, considerarlo a tiempo
+                $llegadas_tiempo++;
+                continue;
+            }
+
+            $hEntrada = $asistencia['HORA_ENTRADA'];
+            $tolerancia = (int)($asistencia['TOLERANCIA'] ?? 0);
+            $hReal = $asistencia['entrada_hora'];
+            $entradaMin = strtotime($fecha . ' ' . $hEntrada);
+            $realMin = strtotime($fecha . ' ' . $hReal);
+            
+            if ($realMin < $entradaMin) {
+                $llegadas_temprano++;
+            } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                $llegadas_tiempo++;
             } else {
-                $hEntrada = $emp['HORA_ENTRADA'];
-                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
-                $hReal = $emp['entrada_hora'];
-                $entradaMin = strtotime($fecha . ' ' . $hEntrada);
-                $realMin = strtotime($fecha . ' ' . $hReal);
-                
-                if ($realMin < $entradaMin) {
-                    $llegadas_temprano++;
-                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
-                    $llegadas_tiempo++;
-                } else {
-                    $llegadas_tarde++;
-                }
+                $llegadas_tarde++;
             }
         }
+        
+        // Calcular faltas
+        $empleados_asistieron_unique = array_unique($empleados_asistieron);
+        $faltas = $total_empleados - count($empleados_asistieron_unique);
         
         return [
             'series' => [
@@ -367,55 +477,72 @@ function getDistribucionAsistenciasEstablecimiento($establecimientoId, $fecha) {
     global $conn;
     
     try {
-        // Get early arrivals, on-time arrivals, and late arrivals for establecimiento
+        // Obtener todos los empleados activos del establecimiento
         $stmt = $conn->prepare("
-            SELECT 
-                e.ID_EMPLEADO,
-                a.HORA as entrada_hora,
-                a.TARDANZA,
-                h.HORA_ENTRADA,
-                h.TOLERANCIA
+            SELECT e.ID_EMPLEADO
             FROM EMPLEADO e
-            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
-            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
-                AND eh.FECHA_DESDE <= :fecha
-                AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
-            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
             WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
             AND e.ESTADO = 'A'
             AND e.ACTIVO = 'S'
         ");
-        
+        $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
+        $stmt->execute();
+        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $total_empleados = count($empleados);
+
+        // Obtener asistencias de ENTRADA para la fecha usando ID_HORARIO de la tabla ASISTENCIA
+        $stmt = $conn->prepare("
+            SELECT 
+                a.ID_EMPLEADO,
+                a.HORA as entrada_hora,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
+            FROM ASISTENCIA a
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            LEFT JOIN HORARIO h ON a.ID_HORARIO = h.ID_HORARIO
+            WHERE e.ID_ESTABLECIMIENTO = :establecimientoId
+            AND a.FECHA = :fecha
+            AND a.TIPO = 'ENTRADA'
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
+        ");
         $stmt->bindParam(':establecimientoId', $establecimientoId, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->execute();
-        
-        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $llegadas_temprano = 0;
         $llegadas_tiempo = 0;
         $llegadas_tarde = 0;
-        $faltas = 0;
+        $empleados_asistieron = [];
         
-        foreach ($empleados as $emp) {
-            if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
-                $faltas++;
+        foreach ($asistencias as $asistencia) {
+            $empleados_asistieron[] = $asistencia['ID_EMPLEADO'];
+            
+            if (!$asistencia['HORA_ENTRADA']) {
+                // Si no tiene horario asignado, considerarlo a tiempo
+                $llegadas_tiempo++;
+                continue;
+            }
+
+            $hEntrada = $asistencia['HORA_ENTRADA'];
+            $tolerancia = (int)($asistencia['TOLERANCIA'] ?? 0);
+            $hReal = $asistencia['entrada_hora'];
+            $entradaMin = strtotime($fecha . ' ' . $hEntrada);
+            $realMin = strtotime($fecha . ' ' . $hReal);
+            
+            if ($realMin < $entradaMin) {
+                $llegadas_temprano++;
+            } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                $llegadas_tiempo++;
             } else {
-                $hEntrada = $emp['HORA_ENTRADA'];
-                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
-                $hReal = $emp['entrada_hora'];
-                $entradaMin = strtotime($fecha . ' ' . $hEntrada);
-                $realMin = strtotime($fecha . ' ' . $hReal);
-                
-                if ($realMin < $entradaMin) {
-                    $llegadas_temprano++;
-                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
-                    $llegadas_tiempo++;
-                } else {
-                    $llegadas_tarde++;
-                }
+                $llegadas_tarde++;
             }
         }
+        
+        // Calcular faltas
+        $empleados_asistieron_unique = array_unique($empleados_asistieron);
+        $faltas = $total_empleados - count($empleados_asistieron_unique);
         
         return [
             'series' => [
@@ -435,14 +562,15 @@ function getDistribucionAsistenciasEstablecimiento($establecimientoId, $fecha) {
 }
 
 /**
- * Obtiene la actividad reciente de asistencias (específico del establecimiento)
+ * Obtiene la actividad reciente de asistencias basada únicamente en registros ENTRADA
+ * (específico del establecimiento)
  * 
  * @param int $establecimientoId ID del establecimiento
  * @param string $fecha Fecha en formato Y-m-d
  * @param int $limit Límite de registros
  * @return array Registros de actividad
  */
-// ESTABLECIMIENTO: Últimas actividades en un establecimiento
+// ESTABLECIMIENTO: Últimas actividades en un establecimiento (solo ENTRADA)
 function getActividadRecienteEstablecimiento($establecimientoId, $fecha = null, $limit = 10) {
     global $conn;
     if (!$fecha) $fecha = date('Y-m-d');
@@ -452,7 +580,10 @@ function getActividadRecienteEstablecimiento($establecimientoId, $fecha = null, 
         JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
         JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-        WHERE est.ID_ESTABLECIMIENTO = :establecimientoId AND a.FECHA = :fecha AND e.ACTIVO = 'S'
+        WHERE est.ID_ESTABLECIMIENTO = :establecimientoId 
+        AND a.FECHA = :fecha 
+        AND a.TIPO = 'ENTRADA'
+        AND e.ACTIVO = 'S'
         ORDER BY a.ID_ASISTENCIA DESC
         LIMIT :limite
     ");
@@ -502,6 +633,7 @@ function getAsistenciasPorHora($empresaId, $fecha) {
 
 /**
  * Obtiene datos para el gráfico de distribución de asistencias (nivel empresa)
+ * Basado únicamente en registros ENTRADA usando ID_HORARIO de la tabla ASISTENCIA
  * 
  * @param int $empresaId ID de la empresa
  * @param string $fecha Fecha en formato Y-m-d
@@ -511,57 +643,76 @@ function getDistribucionAsistencias($empresaId, $fecha) {
     global $conn;
     
     try {
-        // Get early arrivals, on-time arrivals, and late arrivals
+        // Obtener todos los empleados activos de la empresa
         $stmt = $conn->prepare("
-            SELECT 
-                e.ID_EMPLEADO,
-                a.HORA as entrada_hora,
-                a.TARDANZA,
-                h.HORA_ENTRADA,
-                h.TOLERANCIA
+            SELECT e.ID_EMPLEADO
             FROM EMPLEADO e
             JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
             JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-            LEFT JOIN ASISTENCIA a ON e.ID_EMPLEADO = a.ID_EMPLEADO AND a.FECHA = :fecha AND a.TIPO = 'ENTRADA'
-            LEFT JOIN EMPLEADO_HORARIO eh ON e.ID_EMPLEADO = eh.ID_EMPLEADO
-                AND eh.FECHA_DESDE <= :fecha
-                AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= :fecha)
-            LEFT JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
             WHERE s.ID_EMPRESA = :empresaId
             AND e.ESTADO = 'A'
             AND e.ACTIVO = 'S'
         ");
-        
+        $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
+        $stmt->execute();
+        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $total_empleados = count($empleados);
+
+        // Obtener asistencias de ENTRADA para la fecha usando ID_HORARIO de la tabla ASISTENCIA
+        $stmt = $conn->prepare("
+            SELECT 
+                a.ID_EMPLEADO,
+                a.HORA as entrada_hora,
+                h.HORA_ENTRADA,
+                h.TOLERANCIA
+            FROM ASISTENCIA a
+            JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+            JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+            JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+            LEFT JOIN HORARIO h ON a.ID_HORARIO = h.ID_HORARIO
+            WHERE s.ID_EMPRESA = :empresaId
+            AND a.FECHA = :fecha
+            AND a.TIPO = 'ENTRADA'
+            AND e.ESTADO = 'A'
+            AND e.ACTIVO = 'S'
+        ");
         $stmt->bindParam(':empresaId', $empresaId, PDO::PARAM_INT);
         $stmt->bindParam(':fecha', $fecha, PDO::PARAM_STR);
         $stmt->execute();
-        
-        $empleados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         $llegadas_temprano = 0;
         $llegadas_tiempo = 0;
         $llegadas_tarde = 0;
-        $faltas = 0;
+        $empleados_asistieron = [];
         
-        foreach ($empleados as $emp) {
-            if (!$emp['entrada_hora'] || !$emp['HORA_ENTRADA']) {
-                $faltas++;
+        foreach ($asistencias as $asistencia) {
+            $empleados_asistieron[] = $asistencia['ID_EMPLEADO'];
+            
+            if (!$asistencia['HORA_ENTRADA']) {
+                // Si no tiene horario asignado, considerarlo a tiempo
+                $llegadas_tiempo++;
+                continue;
+            }
+
+            $hEntrada = $asistencia['HORA_ENTRADA'];
+            $tolerancia = (int)($asistencia['TOLERANCIA'] ?? 0);
+            $hReal = $asistencia['entrada_hora'];
+            $entradaMin = strtotime($fecha . ' ' . $hEntrada);
+            $realMin = strtotime($fecha . ' ' . $hReal);
+            
+            if ($realMin < $entradaMin) {
+                $llegadas_temprano++;
+            } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
+                $llegadas_tiempo++;
             } else {
-                $hEntrada = $emp['HORA_ENTRADA'];
-                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
-                $hReal = $emp['entrada_hora'];
-                $entradaMin = strtotime($fecha . ' ' . $hEntrada);
-                $realMin = strtotime($fecha . ' ' . $hReal);
-                
-                if ($realMin < $entradaMin) {
-                    $llegadas_temprano++;
-                } elseif ($realMin <= $entradaMin + $tolerancia * 60) {
-                    $llegadas_tiempo++;
-                } else {
-                    $llegadas_tarde++;
-                }
+                $llegadas_tarde++;
             }
         }
+        
+        // Calcular faltas
+        $empleados_asistieron_unique = array_unique($empleados_asistieron);
+        $faltas = $total_empleados - count($empleados_asistieron_unique);
         
         return [
             'series' => [
@@ -588,7 +739,7 @@ function getDistribucionAsistencias($empresaId, $fecha) {
  * @param int $limit Límite de registros
  * @return array Registros de actividad
  */
-// EMPRESA: Últimas actividades en la empresa
+// EMPRESA: Últimas actividades en la empresa (solo ENTRADA)
 function getActividadReciente($empresaId, $fecha = null, $limit = 10) {
     global $conn;
     if (!$fecha) $fecha = date('Y-m-d');
@@ -598,7 +749,10 @@ function getActividadReciente($empresaId, $fecha = null, $limit = 10) {
         JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
         JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-        WHERE s.ID_EMPRESA = :empresaId AND a.FECHA = :fecha AND e.ACTIVO = 'S'
+        WHERE s.ID_EMPRESA = :empresaId 
+        AND a.FECHA = :fecha 
+        AND a.TIPO = 'ENTRADA'
+        AND e.ACTIVO = 'S'
         ORDER BY a.ID_ASISTENCIA DESC
         LIMIT :limite
     ");
@@ -609,7 +763,7 @@ function getActividadReciente($empresaId, $fecha = null, $limit = 10) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// SEDE: Últimas actividades en una sede
+// SEDE: Últimas actividades en una sede (solo ENTRADA)
 function getActividadRecienteSede($sedeId, $fecha = null, $limit = 10) {
     global $conn;
     if (!$fecha) $fecha = date('Y-m-d');
@@ -619,7 +773,10 @@ function getActividadRecienteSede($sedeId, $fecha = null, $limit = 10) {
         JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
         JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-        WHERE s.ID_SEDE = :sedeId AND a.FECHA = :fecha AND e.ACTIVO = 'S'
+        WHERE s.ID_SEDE = :sedeId 
+        AND a.FECHA = :fecha 
+        AND a.TIPO = 'ENTRADA'
+        AND e.ACTIVO = 'S'
         ORDER BY a.ID_ASISTENCIA DESC
         LIMIT :limite
     ");
