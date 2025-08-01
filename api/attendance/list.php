@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
-session_start();
+require_once __DIR__ . '/../../auth/authorization.php';
+requireAuth();
 
 header('Content-Type: application/json');
 
@@ -12,6 +13,12 @@ try {
         exit;
     }
 
+    // Verificar permisos de rol
+    if (!hasPermission('attendance_current_day')) {
+        echo json_encode(['success' => false, 'message' => 'Sin permisos para acceder a asistencias']);
+        exit;
+    }
+
     // Establecer zona horaria de Colombia
     date_default_timezone_set('America/Bogota');
 
@@ -20,9 +27,24 @@ try {
     $limit = max(10, min(50, intval($_GET['limit'] ?? 10)));
     $offset = ($page - 1) * $limit;
 
-    // Obtenemos fecha actual y hace 20 horas
-    $fecha_actual = date('Y-m-d H:i:s');
-    $fecha_20_horas_atras = date('Y-m-d H:i:s', strtotime('-20 hours'));
+    // Aplicar restricciones de fecha según el rol
+    $dateFilter = getDateFilter();
+    if ($dateFilter === false) {
+        echo json_encode(['success' => false, 'message' => 'Sin acceso a los datos']);
+        exit;
+    }
+
+    // Para usuarios de asistencia, solo mostrar el día actual
+    if (isAttendanceUser()) {
+        // Obtenemos fecha y hora actual
+        $fecha_actual = date('Y-m-d H:i:s');
+        $fecha_inicio_dia = date('Y-m-d 00:00:00');
+        $fecha_fin_dia = date('Y-m-d 23:59:59');
+    } else {
+        // Para gerentes, mostrar las últimas 20 horas como antes
+        $fecha_actual = date('Y-m-d H:i:s');
+        $fecha_20_horas_atras = date('Y-m-d H:i:s', strtotime('-20 hours'));
+    }
 
     // Parámetros de filtro
     $filtros = [
@@ -34,12 +56,17 @@ try {
     // Construcción de la consulta base
     $where = ["s.ID_EMPRESA = :empresa_id"];
     $params = [
-        ':empresa_id' => $empresaId,
-        ':fecha_20_horas_atras' => $fecha_20_horas_atras
+        ':empresa_id' => $empresaId
     ];
 
-    // Filtrar por últimas 20 horas (en lugar de solo fecha actual)
-    $where[] = "CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_20_horas_atras";
+    // Aplicar filtro de fecha según el rol
+    if (isAttendanceUser()) {
+        $where[] = "a.FECHA = :fecha_actual";
+        $params[':fecha_actual'] = date('Y-m-d');
+    } else {
+        $where[] = "CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_20_horas_atras";
+        $params[':fecha_20_horas_atras'] = $fecha_20_horas_atras;
+    }
 
     // Aplicar filtros adicionales
     if ($filtros['codigo']) {

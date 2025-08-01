@@ -27,7 +27,12 @@ let observacionTipo = null;
 document.addEventListener('DOMContentLoaded', function() {
     // Inicializar componentes principales
     initializeAttendancePagination();
-    cargarFiltros();
+    
+    // Solo cargar filtros para gerentes
+    if (window.isOwnerManager) {
+        cargarFiltros();
+    }
+    
     loadAttendanceDay();
     
     // Iniciar actualización automática cada 30 minutos
@@ -553,29 +558,34 @@ function renderAttendanceTable(data) {
     
     // Renderizar la tabla
     asistenciasFinal.forEach(att => {
+        // Botones de acción - solo para gerentes
         let accion = '';
+        let observacionEntradaBtn = '';
+        let observacionSalidaBtn = '';
         
-        // Si hay entrada pero no salida para este horario, mostrar botón de salida
-        if (att.ENTRADA_HORA && !att.SALIDA_HORA) {
-            accion = `<button type="button" class="btn-primary btn-sm" onclick="registrarSalida(${att.ID_EMPLEADO}, '${att.FECHA}', ${att.ID_HORARIO})">
-                        <i class="fas fa-sign-out-alt"></i> Registrar Salida
-                      </button>`;
+        if (window.isOwnerManager) {
+            // Si hay entrada pero no salida para este horario, mostrar botón de salida
+            if (att.ENTRADA_HORA && !att.SALIDA_HORA) {
+                accion = `<button type="button" class="btn-primary btn-sm" onclick="registrarSalida(${att.ID_EMPLEADO}, '${att.FECHA}', ${att.ID_HORARIO})">
+                            <i class="fas fa-sign-out-alt"></i> Registrar Salida
+                          </button>`;
+            }
+            
+            // Botones de observación para entrada y salida - solo para gerentes
+            observacionEntradaBtn = att.ENTRADA_ID ? 
+                `<button type="button" class="btn-icon btn-comment" 
+                    title="${att.ENTRADA_OBSERVACION ? 'Editar observación' : 'Agregar observación'}" 
+                    onclick="openObservationModal(${att.ENTRADA_ID}, 'ENTRADA', '${att.NOMBRE.replace("'", "\\'")}', '${att.FECHA}', '${att.ENTRADA_HORA}', '${(att.ENTRADA_OBSERVACION || '').replace("'", "\\'")}')">
+                    <i class="fas fa-${att.ENTRADA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
+                 </button>` : '';
+            
+            observacionSalidaBtn = att.SALIDA_ID ? 
+                `<button type="button" class="btn-icon btn-comment" 
+                    title="${att.SALIDA_OBSERVACION ? 'Editar observación' : 'Agregar observación'}" 
+                    onclick="openObservationModal(${att.SALIDA_ID}, 'SALIDA', '${att.NOMBRE.replace("'", "\\'")}', '${att.FECHA}', '${att.SALIDA_HORA}', '${(att.SALIDA_OBSERVACION || '').replace("'", "\\'")}')">
+                    <i class="fas fa-${att.SALIDA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
+                 </button>` : '';
         }
-        
-        // Botones de observación para entrada y salida
-        let observacionEntradaBtn = att.ENTRADA_ID ? 
-            `<button type="button" class="btn-icon btn-comment" 
-                title="${att.ENTRADA_OBSERVACION ? 'Editar observación' : 'Agregar observación'}" 
-                onclick="openObservationModal(${att.ENTRADA_ID}, 'ENTRADA', '${att.NOMBRE.replace("'", "\\'")}', '${att.FECHA}', '${att.ENTRADA_HORA}', '${(att.ENTRADA_OBSERVACION || '').replace("'", "\\'")}')">
-                <i class="fas fa-${att.ENTRADA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
-             </button>` : '';
-        
-        let observacionSalidaBtn = att.SALIDA_ID ? 
-            `<button type="button" class="btn-icon btn-comment" 
-                title="${att.SALIDA_OBSERVACION ? 'Editar observación' : 'Agregar observación'}" 
-                onclick="openObservationModal(${att.SALIDA_ID}, 'SALIDA', '${att.NOMBRE.replace("'", "\\'")}', '${att.FECHA}', '${att.SALIDA_HORA}', '${(att.SALIDA_OBSERVACION || '').replace("'", "\\'")}')">
-                <i class="fas fa-${att.SALIDA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
-             </button>` : '';
         
         // Formatear fotos con clase para hacerlas ampliables
         let fotoEntrada = att.ENTRADA_FOTO ? 

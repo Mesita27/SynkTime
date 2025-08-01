@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth/session.php';
-requireAuth(); // Redirige a login si no hay sesión activa
+require_once __DIR__ . '/auth/authorization.php';
+requirePageAccess(); // Verificar autenticación y autorización de página
 ?>
 <!DOCTYPE html>
 <html lang="es">

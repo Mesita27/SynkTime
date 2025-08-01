@@ -1,6 +1,7 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+require_once 'auth/authorization.php';
+requirePageAccess();
 require_once 'config/database.php';
 
 // Inicializar sesión si es necesario
