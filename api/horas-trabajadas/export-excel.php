@@ -19,40 +19,43 @@ try {
     $filtros = [
         'sede' => $_GET['sede'] ?? null,
         'establecimiento' => $_GET['establecimiento'] ?? null,
-        'empleado' => $_GET['empleado'] ?? null,
+        'empleados' => $_GET['empleados'] ?? [], // Support array of employee IDs
         'fechaDesde' => $_GET['fechaDesde'] ?? date('Y-m-d'),
         'fechaHasta' => $_GET['fechaHasta'] ?? date('Y-m-d')
     ];
 
     // Construir consulta base (reutilizar lógica de get-horas.php)
-    $where = ["emp.ID_EMPRESA = :empresa_id"];
-    $params = [':empresa_id' => $empresaId];
+    $where = ["emp.ID_EMPRESA = ?"];
+    $params = [$empresaId];
 
     // Aplicar filtros de fecha
     if ($filtros['fechaDesde']) {
-        $where[] = "a_fecha.FECHA >= :fecha_desde";
-        $params[':fecha_desde'] = $filtros['fechaDesde'];
+        $where[] = "a_fecha.FECHA >= ?";
+        $params[] = $filtros['fechaDesde'];
     }
 
     if ($filtros['fechaHasta']) {
-        $where[] = "a_fecha.FECHA <= :fecha_hasta";
-        $params[':fecha_hasta'] = $filtros['fechaHasta'];
+        $where[] = "a_fecha.FECHA <= ?";
+        $params[] = $filtros['fechaHasta'];
     }
 
     // Filtros adicionales
-    if ($filtros['empleado']) {
-        $where[] = "e.ID_EMPLEADO = :empleado";
-        $params[':empleado'] = $filtros['empleado'];
+    if (!empty($filtros['empleados']) && is_array($filtros['empleados'])) {
+        $empleadosPlaceholders = implode(',', array_fill(0, count($filtros['empleados']), '?'));
+        $where[] = "e.ID_EMPLEADO IN ($empleadosPlaceholders)";
+        foreach ($filtros['empleados'] as $empleadoId) {
+            $params[] = $empleadoId;
+        }
     }
 
     if ($filtros['sede']) {
-        $where[] = "s.ID_SEDE = :sede";
-        $params[':sede'] = $filtros['sede'];
+        $where[] = "s.ID_SEDE = ?";
+        $params[] = $filtros['sede'];
     }
 
     if ($filtros['establecimiento']) {
-        $where[] = "est.ID_ESTABLECIMIENTO = :establecimiento";
-        $params[':establecimiento'] = $filtros['establecimiento'];
+        $where[] = "est.ID_ESTABLECIMIENTO = ?";
+        $params[] = $filtros['establecimiento'];
     }
 
     $whereClause = implode(' AND ', $where);
@@ -134,9 +137,12 @@ try {
     ";
 
     $stmt = $conn->prepare($sql);
-    foreach ($params as $key => $value) {
-        $stmt->bindValue($key, $value);
+    
+    // Bind parameters by position
+    for ($i = 0; $i < count($params); $i++) {
+        $stmt->bindValue($i + 1, $params[$i]);
     }
+    
     $stmt->execute();
     $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
