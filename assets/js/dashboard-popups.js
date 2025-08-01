@@ -224,18 +224,21 @@ function mostrarDatosEnTabla(tipo, datos) {
             // Calcular diferencia de minutos para mostrar
             let minutosDiferencia = item.MINUTOS_DIFERENCIA || 0;
             let diferencia;
-            let claseBadge = tipo;
+            let claseBadge = '';
             
             if (tipo === 'temprano') {
                 diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
+                claseBadge = 'temprano';
             } else if (tipo === 'aTiempo') {
-                if (minutosDiferencia > 0) {
-                    diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
-                } else {
+                if (minutosDiferencia <= 0) {
                     diferencia = `A tiempo`;
+                } else {
+                    diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min después`;
                 }
+                claseBadge = 'a-tiempo';
             } else { // tarde
                 diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min tarde`;
+                claseBadge = 'tarde';
             }
             
             tableBody.innerHTML += `
@@ -321,10 +324,10 @@ function realizarExportacion(tipo) {
             if (tipo === 'temprano') {
                 diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
             } else if (tipo === 'aTiempo') {
-                if (minutosDiferencia > 0) {
-                    diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
-                } else {
+                if (minutosDiferencia <= 0) {
                     diferencia = `A tiempo`;
+                } else {
+                    diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min después`;
                 }
             } else { // tarde
                 diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min tarde`;
