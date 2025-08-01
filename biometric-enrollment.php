@@ -75,6 +75,58 @@ requireAuth();
                 </div>
             </div>
             
+            <!-- Sistema biométrico - Estado de servicios -->
+            <div class="biometric-system-status">
+                <h3><i class="fas fa-cogs"></i> Estado del Sistema Biométrico</h3>
+                <div class="system-status-cards">
+                    <div class="status-card" id="facial_api_status">
+                        <div class="status-icon">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4>Reconocimiento Facial</h4>
+                            <p class="status-text">Verificando...</p>
+                            <small class="provider-text"></small>
+                        </div>
+                        <div class="status-indicator">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </div>
+                    <div class="status-card" id="fingerprint_api_status">
+                        <div class="status-icon">
+                            <i class="fas fa-fingerprint"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4>Reconocimiento de Huellas</h4>
+                            <p class="status-text">Verificando...</p>
+                            <small class="provider-text"></small>
+                        </div>
+                        <div class="status-indicator">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </div>
+                    <div class="status-card" id="system_capabilities_status">
+                        <div class="status-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="status-content">
+                            <h4>Capacidades del Sistema</h4>
+                            <p class="status-text">Verificando...</p>
+                            <small class="provider-text"></small>
+                        </div>
+                        <div class="status-indicator">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="system-recommendations" id="system_recommendations" style="display: none;">
+                    <h4><i class="fas fa-lightbulb"></i> Recomendaciones</h4>
+                    <div class="recommendations-list" id="recommendations_list">
+                        <!-- Recommendations will be loaded here -->
+                    </div>
+                </div>
+            </div>
+            
             <!-- Resumen de empleados por estado biométrico -->
             <div class="biometric-summary">
                 <h3><i class="fas fa-list"></i> Estado de Inscripción por Empleado</h3>

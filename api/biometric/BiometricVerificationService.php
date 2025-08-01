@@ -4,12 +4,31 @@
  * Handles comparison of biometric data for authentication
  */
 
+require_once __DIR__ . '/ExternalFacialRecognitionService.php';
+
 class BiometricVerificationService {
     
     private $conn;
+    private $facialService;
     
     public function __construct($database_connection) {
         $this->conn = $database_connection;
+        
+        // Load configuration and initialize external facial recognition service
+        $config = include __DIR__ . '/../../config/biometric-config.php';
+        $facialConfig = $config['facial_recognition'];
+        
+        // Set up the external service based on provider
+        $provider = $facialConfig['provider'];
+        if ($provider !== 'none' && isset($facialConfig[$provider]) && $facialConfig[$provider]['enabled']) {
+            $serviceConfig = array_merge($facialConfig, $facialConfig[$provider]);
+            $serviceConfig['provider'] = $provider;
+            $serviceConfig['enabled'] = true;
+        } else {
+            $serviceConfig = array_merge($facialConfig, ['provider' => 'none', 'enabled' => false]);
+        }
+        
+        $this->facialService = new ExternalFacialRecognitionService($serviceConfig);
     }
     
     /**
@@ -116,29 +135,49 @@ class BiometricVerificationService {
                 ];
             }
             
-            // Compare with stored facial images
+            // Compare with stored facial images using external service
             $best_match = 0;
+            $best_result = null;
             $upload_dir = '../../uploads/facial/';
             
             foreach ($facial_info['images'] as $stored_image_filename) {
                 $stored_image_path = $upload_dir . $stored_image_filename;
                 
                 if (file_exists($stored_image_path)) {
-                    $similarity = $this->compareFacialData($image_data, $stored_image_path);
-                    $best_match = max($best_match, $similarity);
+                    // Convert stored image to base64 for external API
+                    $stored_image_data = base64_encode(file_get_contents($stored_image_path));
+                    
+                    // Use external facial recognition service
+                    $comparison_result = $this->facialService->compareFaces($image_data, $stored_image_data);
+                    
+                    if ($comparison_result['confidence'] > $best_match) {
+                        $best_match = $comparison_result['confidence'];
+                        $best_result = $comparison_result;
+                    }
                 }
             }
             
-            // Threshold for facial verification (75% similarity)
-            $threshold = 0.75;
-            $verified = $best_match >= $threshold;
+            if (!$best_result) {
+                return [
+                    'success' => false,
+                    'message' => 'No se pudieron procesar las imágenes almacenadas',
+                    'confidence' => 0
+                ];
+            }
+            
+            // Use the external service's confidence threshold
+            $verified = $best_result['success'];
+            
+            $message = $verified ? 
+                "Rostro verificado correctamente usando {$best_result['provider']}" : 
+                "Rostro no reconocido usando {$best_result['provider']} (confianza: " . round($best_match * 100, 1) . '%)';
             
             return [
                 'success' => $verified,
                 'confidence' => $best_match,
-                'message' => $verified ? 
-                    'Rostro verificado correctamente' : 
-                    'Rostro no reconocido (confianza: ' . round($best_match * 100, 1) . '%)'
+                'message' => $message,
+                'provider' => $best_result['provider'],
+                'external_service_used' => $this->facialService->getStatus()['enabled']
             ];
             
         } catch (Exception $e) {
@@ -284,6 +323,20 @@ class BiometricVerificationService {
         }
         
         return $data;
+    }
+    
+    /**
+     * Get biometric service status and configuration
+     */
+    public function getServiceStatus() {
+        return [
+            'facial_recognition' => $this->facialService->getStatus(),
+            'fingerprint_recognition' => [
+                'enabled' => true,
+                'provider' => 'Local Algorithm',
+                'configured' => true
+            ]
+        ];
     }
     
     /**

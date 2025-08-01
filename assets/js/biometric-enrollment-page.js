@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     loadBiometricStats();
     loadBiometricSummary();
+    loadSystemStatus();
 });
 
 /**
@@ -97,7 +98,176 @@ function setupEventListeners() {
 }
 
 // ===================================================================
-// 2. LOAD SEDES AND ESTABLECIMIENTOS FOR FILTERS
+// 2. SYSTEM STATUS
+// ===================================================================
+
+/**
+ * Load system status and external API information
+ */
+async function loadSystemStatus() {
+    try {
+        const response = await fetch('api/biometric/service-status.php');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateSystemStatusDisplay(data.status);
+            updateRecommendations(data.recommendations);
+        } else {
+            console.error('Error loading system status:', data.message);
+            showErrorSystemStatus();
+        }
+    } catch (error) {
+        console.error('Error loading system status:', error);
+        showErrorSystemStatus();
+    }
+}
+
+/**
+ * Update system status display
+ */
+function updateSystemStatusDisplay(status) {
+    // Update facial recognition status
+    const facialCard = document.getElementById('facial_api_status');
+    const facialStatus = status.external_apis.facial_recognition;
+    
+    updateStatusCard(facialCard, {
+        enabled: facialStatus.enabled,
+        provider: facialStatus.provider,
+        configured: facialStatus.configured,
+        service: 'Reconocimiento Facial'
+    });
+    
+    // Update fingerprint recognition status
+    const fingerprintCard = document.getElementById('fingerprint_api_status');
+    const fingerprintStatus = status.external_apis.fingerprint_recognition;
+    
+    updateStatusCard(fingerprintCard, {
+        enabled: fingerprintStatus.enabled,
+        provider: fingerprintStatus.provider,
+        configured: fingerprintStatus.configured,
+        service: 'Reconocimiento de Huellas'
+    });
+    
+    // Update system capabilities
+    const capabilitiesCard = document.getElementById('system_capabilities_status');
+    const capabilities = status.system_capabilities;
+    
+    updateCapabilitiesCard(capabilitiesCard, capabilities);
+}
+
+/**
+ * Update individual status card
+ */
+function updateStatusCard(card, statusInfo) {
+    if (!card) return;
+    
+    const statusText = card.querySelector('.status-text');
+    const providerText = card.querySelector('.provider-text');
+    const indicator = card.querySelector('.status-indicator');
+    
+    // Remove loading state
+    card.classList.remove('status-loading');
+    
+    if (statusInfo.enabled && statusInfo.configured) {
+        card.classList.add('status-active');
+        statusText.textContent = 'Configurado y activo';
+        providerText.textContent = `Proveedor: ${statusInfo.provider}`;
+        indicator.innerHTML = '<i class="fas fa-check-circle status-active"></i>';
+    } else if (statusInfo.enabled && !statusInfo.configured) {
+        card.classList.add('status-warning');
+        statusText.textContent = 'Configuración incompleta';
+        providerText.textContent = `Proveedor: ${statusInfo.provider}`;
+        indicator.innerHTML = '<i class="fas fa-exclamation-triangle status-warning"></i>';
+    } else {
+        card.classList.add('status-error');
+        statusText.textContent = 'No configurado (usando algoritmo local)';
+        providerText.textContent = `Algoritmo local activo`;
+        indicator.innerHTML = '<i class="fas fa-info-circle"></i>';
+    }
+}
+
+/**
+ * Update capabilities card
+ */
+function updateCapabilitiesCard(card, capabilities) {
+    if (!card) return;
+    
+    const statusText = card.querySelector('.status-text');
+    const providerText = card.querySelector('.provider-text');
+    const indicator = card.querySelector('.status-indicator');
+    
+    // Count active capabilities
+    const activeCapabilities = Object.values(capabilities).filter(Boolean).length;
+    const totalCapabilities = Object.keys(capabilities).length;
+    
+    card.classList.remove('status-loading');
+    card.classList.add('status-active');
+    
+    statusText.textContent = `${activeCapabilities}/${totalCapabilities} características activas`;
+    providerText.textContent = 'Sistema completamente funcional';
+    indicator.innerHTML = '<i class="fas fa-check-circle status-active"></i>';
+}
+
+/**
+ * Update recommendations display
+ */
+function updateRecommendations(recommendations) {
+    const recommendationsContainer = document.getElementById('system_recommendations');
+    const recommendationsList = document.getElementById('recommendations_list');
+    
+    if (!recommendations || recommendations.length === 0) {
+        recommendationsContainer.style.display = 'none';
+        return;
+    }
+    
+    recommendationsContainer.style.display = 'block';
+    recommendationsList.innerHTML = '';
+    
+    recommendations.forEach(rec => {
+        const item = document.createElement('div');
+        item.className = `recommendation-item type-${rec.type}`;
+        
+        const iconClass = rec.type === 'success' ? 'fa-check-circle' :
+                         rec.type === 'warning' ? 'fa-exclamation-triangle' :
+                         rec.type === 'error' ? 'fa-times-circle' : 'fa-info-circle';
+        
+        item.innerHTML = `
+            <div class="recommendation-icon">
+                <i class="fas ${iconClass}"></i>
+            </div>
+            <div class="recommendation-content">
+                <h5>${rec.title}</h5>
+                <p>${rec.message}</p>
+            </div>
+        `;
+        
+        recommendationsList.appendChild(item);
+    });
+}
+
+/**
+ * Show error system status
+ */
+function showErrorSystemStatus() {
+    const cards = ['facial_api_status', 'fingerprint_api_status', 'system_capabilities_status'];
+    
+    cards.forEach(cardId => {
+        const card = document.getElementById(cardId);
+        if (card) {
+            card.classList.remove('status-loading');
+            card.classList.add('status-error');
+            
+            const statusText = card.querySelector('.status-text');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusText.textContent = 'Error al verificar estado';
+            indicator.innerHTML = '<i class="fas fa-times-circle status-error"></i>';
+        }
+    });
+}
+
+// ===================================================================
+// 3. LOAD SEDES AND ESTABLECIMIENTOS FOR FILTERS
 // ===================================================================
 
 /**
@@ -209,7 +379,7 @@ async function loadSedesForEnrollment() {
 }
 
 // ===================================================================
-// 3. BIOMETRIC STATISTICS
+// 4. BIOMETRIC STATISTICS
 // ===================================================================
 
 /**
@@ -259,7 +429,7 @@ function updateBiometricStatsDisplay() {
 }
 
 // ===================================================================
-// 4. BIOMETRIC SUMMARY TABLE
+// 5. BIOMETRIC SUMMARY TABLE
 // ===================================================================
 
 /**
@@ -387,7 +557,7 @@ function renderBiometricSummaryTable(data) {
 }
 
 // ===================================================================
-// 5. FILTER FUNCTIONS
+// 6. FILTER FUNCTIONS
 // ===================================================================
 
 /**
@@ -425,7 +595,7 @@ function clearBiometricFilters() {
 }
 
 // ===================================================================
-// 6. EMPLOYEE SELECTION AND ENROLLMENT
+// 7. EMPLOYEE SELECTION AND ENROLLMENT
 // ===================================================================
 
 /**
@@ -525,7 +695,7 @@ window.selectEmployeeForEnrollment = function(employeeId, employeeName) {
 };
 
 // ===================================================================
-// 7. BIOMETRIC HISTORY AND REPORTS
+// 8. BIOMETRIC HISTORY AND REPORTS
 // ===================================================================
 
 /**
@@ -545,7 +715,7 @@ function generateBiometricReport() {
 }
 
 // ===================================================================
-// 8. UTILITY FUNCTIONS
+// 9. UTILITY FUNCTIONS
 // ===================================================================
 
 /**
