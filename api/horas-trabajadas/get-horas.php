@@ -21,50 +21,40 @@ try {
     $filtros = [
         'sede' => $_GET['sede'] ?? null,
         'establecimiento' => $_GET['establecimiento'] ?? null,
-        'empleados' => $_GET['empleados'] ?? null, // Changed to handle multiple employees
+        'empleado' => $_GET['empleado'] ?? null,
         'fechaDesde' => $_GET['fechaDesde'] ?? date('Y-m-d'),
         'fechaHasta' => $_GET['fechaHasta'] ?? date('Y-m-d')
     ];
 
     // Construir consulta base
-    $where = ["emp.ID_EMPRESA = ?"];
-    $params = [$empresaId];
+    $where = ["emp.ID_EMPRESA = :empresa_id"];
+    $params = [':empresa_id' => $empresaId];
 
     // Aplicar filtros de fecha
     if ($filtros['fechaDesde']) {
-        $where[] = "a_fecha.FECHA >= ?";
-        $params[] = $filtros['fechaDesde'];
+        $where[] = "a_fecha.FECHA >= :fecha_desde";
+        $params[':fecha_desde'] = $filtros['fechaDesde'];
     }
 
     if ($filtros['fechaHasta']) {
-        $where[] = "a_fecha.FECHA <= ?";
-        $params[] = $filtros['fechaHasta'];
+        $where[] = "a_fecha.FECHA <= :fecha_hasta";
+        $params[':fecha_hasta'] = $filtros['fechaHasta'];
     }
 
     // Filtros adicionales
-    if ($filtros['empleados']) {
-        // Handle multiple employees (comma-separated list)
-        $empleadoIds = explode(',', $filtros['empleados']);
-        $empleadoIds = array_map('trim', $empleadoIds);
-        $empleadoIds = array_filter($empleadoIds, 'is_numeric');
-        
-        if (!empty($empleadoIds)) {
-            $placeholders = implode(',', array_fill(0, count($empleadoIds), '?'));
-            $where[] = "e.ID_EMPLEADO IN ($placeholders)";
-            foreach ($empleadoIds as $empId) {
-                $params[] = $empId;
-            }
-        }
+    if ($filtros['empleado']) {
+        $where[] = "e.ID_EMPLEADO = :empleado";
+        $params[':empleado'] = $filtros['empleado'];
     }
 
     if ($filtros['sede']) {
-        $where[] = "s.ID_SEDE = ?";
-        $params[] = $filtros['sede'];
+        $where[] = "s.ID_SEDE = :sede";
+        $params[':sede'] = $filtros['sede'];
     }
 
     if ($filtros['establecimiento']) {
-        $where[] = "est.ID_ESTABLECIMIENTO = ?";
-        $params[] = $filtros['establecimiento'];
+        $where[] = "est.ID_ESTABLECIMIENTO = :establecimiento";
+        $params[':establecimiento'] = $filtros['establecimiento'];
     }
 
     $whereClause = implode(' AND ', $where);
@@ -152,8 +142,8 @@ try {
     ";
 
     $stmt = $conn->prepare($sql);
-    for ($i = 0; $i < count($params); $i++) {
-        $stmt->bindValue($i + 1, $params[$i]);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
     }
     $stmt->execute();
     $asistencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -192,19 +182,6 @@ try {
             // Solo calcular si la salida es posterior a la entrada
             if ($salidaTs > $entradaTs) {
                 $horasTrabajadas = ($salidaTs - $entradaTs) / 3600;
-                
-                // Aplicar tolerancia si está configurada
-                $toleranciaMinutos = $registro['TOLERANCIA'] ?? 0;
-                if ($toleranciaMinutos > 0 && $registro['HORA_ENTRADA_PROGRAMADA']) {
-                    $entradaProgramadaTs = strtotime($fecha . ' ' . $registro['HORA_ENTRADA_PROGRAMADA']);
-                    $toleranciaSegundos = $toleranciaMinutos * 60;
-                    
-                    // Si la entrada está dentro de la tolerancia, ajustar como si fuera puntual
-                    if ($entradaTs <= ($entradaProgramadaTs + $toleranciaSegundos)) {
-                        $entradaTs = $entradaProgramadaTs;
-                        $horasTrabajadas = ($salidaTs - $entradaTs) / 3600;
-                    }
-                }
                 
                 // Clasificar las horas según el tipo de día y horario
                 if ($esFestivo) {
