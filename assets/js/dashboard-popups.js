@@ -87,6 +87,9 @@ function configurarEventosModales() {
     });
 }
 
+// Hacer la función globalmente accesible
+window.mostrarModalAsistencias = mostrarModalAsistencias;
+
 // Modificar la función mostrarModalAsistencias para añadir depuración
 function mostrarModalAsistencias(tipo) {
     // Obtener elementos necesarios

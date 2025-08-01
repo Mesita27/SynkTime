@@ -39,6 +39,37 @@
     box-shadow: var(--shadow-lg);
 }
 
+/* Clickable cards styles */
+.stat-card.clickable-card {
+    cursor: pointer;
+    position: relative;
+}
+
+.stat-card.clickable-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(75, 150, 250, 0.15);
+    border-color: var(--primary);
+}
+
+.stat-card.clickable-card:active {
+    transform: translateY(-2px);
+}
+
+.stat-card.clickable-card::after {
+    content: "Click para ver detalles";
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.stat-card.clickable-card:hover::after {
+    opacity: 1;
+}
+
 .stat-icon {
     width: 56px;
     height: 56px;

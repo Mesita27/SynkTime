@@ -174,7 +174,7 @@ function getEstadisticasAsistencia($nivel, $id, $fecha) {
             // Calcular diferencia en minutos
             $diferenciaMinutos = ($realMin - $entradaMin) / 60;
 
-            // Lógica mejorada para determinar tipo de llegada:
+            // Lógica mejorada para determinar tipo de llegada basada en ID de horario:
             // 1. Temprano: llegó antes de la hora programada
             // 2. A tiempo: llegó en la hora programada o dentro de la tolerancia
             // 3. Tarde: llegó después de la tolerancia
@@ -197,21 +197,37 @@ function getEstadisticasAsistencia($nivel, $id, $fecha) {
         $stmt3->execute([':emp' => $emp['ID_EMPLEADO'], ':fecha' => $fecha]);
         $salida = $stmt3->fetch(PDO::FETCH_ASSOC);
 
-        if ($asistencia && $salida && $emp['HORA_SALIDA']) {
-            $hSalida = $emp['HORA_SALIDA'];
+        // Cálculo corregido de horas trabajadas: tiempo desde entrada hasta salida
+        if ($asistencia && $salida) {
+            $hReal = $asistencia['HORA'];
             $realSalida = $salida['HORA'];
-            $salidaMin = strtotime($fecha . ' ' . $hSalida);
-            $realSalidaMin = strtotime($fecha . ' ' . $realSalida);
-            $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
-
-            if ($realSalidaMin < $salidaMin - $tolerancia*60) $salidas_temprano++;
-            elseif ($realSalidaMin <= $salidaMin + $tolerancia*60) $salidas_atiempo++;
-            else $salidas_tarde++;
-
-            // --- Horas trabajadas ---
-            $minTr = ($realSalidaMin - $realMin) / 60;
-            if ($minTr > 0 && $minTr < 24*60) $horas_trabajadas += $minTr / 60;
+            
+            // Convertir a timestamps
+            $entradaTimestamp = strtotime($fecha . ' ' . $hReal);
+            $salidaTimestamp = strtotime($fecha . ' ' . $realSalida);
+            
+            // Calcular diferencia en horas (solo si la salida es posterior a la entrada)
+            if ($salidaTimestamp > $entradaTimestamp) {
+                $minutosTrabajados = ($salidaTimestamp - $entradaTimestamp) / 60;
+                // Solo contar si es un rango razonable (máximo 16 horas)
+                if ($minutosTrabajados > 0 && $minutosTrabajados <= 16 * 60) {
+                    $horas_trabajadas += $minutosTrabajados / 60;
+                }
+            }
+            
             $total_salidas++;
+            
+            // Clasificación de salidas (opcional, para estadísticas adicionales)
+            if ($emp['HORA_SALIDA']) {
+                $hSalida = $emp['HORA_SALIDA'];
+                $salidaMin = strtotime($fecha . ' ' . $hSalida);
+                $realSalidaMin = strtotime($fecha . ' ' . $realSalida);
+                $tolerancia = (int)($emp['TOLERANCIA'] ?? 0);
+
+                if ($realSalidaMin < $salidaMin - $tolerancia*60) $salidas_temprano++;
+                elseif ($realSalidaMin <= $salidaMin + $tolerancia*60) $salidas_atiempo++;
+                else $salidas_tarde++;
+            }
         }
     }
 

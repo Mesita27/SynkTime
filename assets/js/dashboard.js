@@ -115,7 +115,7 @@ class Dashboard {
             }
         };
 
-        // Inicializar gráfico de distribución
+        // Inicializar gráfico de distribución con interactividad
         const distributionOptions = {
             series: initialData.distributionData ? [
                 initialData.distributionData.tempranos || 0,
@@ -123,7 +123,20 @@ class Dashboard {
                 initialData.distributionData.tarde || 0,
                 initialData.distributionData.faltas || 0
             ] : [0, 0, 0, 0],
-            chart: { type: 'donut', height: 350 },
+            chart: { 
+                type: 'donut', 
+                height: 350,
+                events: {
+                    dataPointSelection: (event, chartContext, config) => {
+                        // Mapear índices a tipos de asistencia
+                        const tipos = ['temprano', 'aTiempo', 'tarde', 'faltas'];
+                        const tipoSeleccionado = tipos[config.dataPointIndex];
+                        if (tipoSeleccionado && window.mostrarModalAsistencias) {
+                            window.mostrarModalAsistencias(tipoSeleccionado);
+                        }
+                    }
+                }
+            },
             colors: ['#28A745', '#48BB78', '#F6AD55', '#F56565'],
             labels: ['Tempranos', 'A Tiempo', 'Tardanzas', 'Faltas'],
             plotOptions: {
@@ -141,10 +154,26 @@ class Dashboard {
                     }
                 }
             },
-            legend: { position: 'bottom', horizontalAlign: 'center' },
+            legend: { 
+                position: 'bottom', 
+                horizontalAlign: 'center',
+                onItemClick: {
+                    toggleDataSeries: false
+                },
+                onItemHover: {
+                    highlightDataSeries: true
+                }
+            },
             dataLabels: { 
                 enabled: true, 
                 formatter: (val, opts) => opts.w.config.series[opts.seriesIndex] 
+            },
+            tooltip: {
+                y: {
+                    formatter: function(val) {
+                        return val + " empleados"
+                    }
+                }
             },
             responsive: [{
                 breakpoint: 480,
@@ -163,7 +192,7 @@ class Dashboard {
     }
 
     /**
-     * Update charts with new data
+     * Update charts with new data and maintain interactivity
      */
     updateCharts(hourlyData, distributionData) {
         if (this.attendanceByHourChart) {
@@ -176,12 +205,28 @@ class Dashboard {
             }]);
         }
         if (this.attendanceDistributionChart) {
+            // Actualizar series manteniendo la interactividad
             this.attendanceDistributionChart.updateSeries([
                 distributionData.tempranos || 0,
                 distributionData.atiempo || 0,
                 distributionData.tarde || 0,
                 distributionData.faltas || 0
             ]);
+            
+            // Asegurar que los eventos de clic sigan funcionando
+            this.attendanceDistributionChart.updateOptions({
+                chart: {
+                    events: {
+                        dataPointSelection: (event, chartContext, config) => {
+                            const tipos = ['temprano', 'aTiempo', 'tarde', 'faltas'];
+                            const tipoSeleccionado = tipos[config.dataPointIndex];
+                            if (tipoSeleccionado && window.mostrarModalAsistencias) {
+                                window.mostrarModalAsistencias(tipoSeleccionado);
+                            }
+                        }
+                    }
+                }
+            });
         }
     }
     
@@ -189,20 +234,43 @@ class Dashboard {
      * Configurar event listeners para las tarjetas de asistencia
      */
     setupAttendanceCardListeners() {
-        // Mapeo de IDs de tarjetas a tipos de popup
+        // Mapeo de IDs de tarjetas a tipos de popup (usando los elementos con stat-value IDs)
         const cardMappings = [
-            { cardId: 'llegadasTempranas-card', type: 'temprano' },
-            { cardId: 'llegadasTiempo-card', type: 'aTiempo' },
-            { cardId: 'llegadasTarde-card', type: 'tarde' },
-            { cardId: 'faltas-card', type: 'faltas' }
+            { statValueId: 'llegadasTemprano', type: 'temprano', cardSelector: '[data-card="temprano"]' },
+            { statValueId: 'llegadasTiempo', type: 'aTiempo', cardSelector: '[data-card="atiempo"]' },
+            { statValueId: 'llegadasTarde', type: 'tarde', cardSelector: '[data-card="tarde"]' },
+            { statValueId: 'faltas', type: 'faltas', cardSelector: '[data-card="faltas"]' }
         ];
         
-        // Configurar cada tarjeta
+        // Configurar cada tarjeta por su contenedor padre
         cardMappings.forEach(mapping => {
-            const card = document.getElementById(mapping.cardId);
-            if (card) {
-                card.style.cursor = 'pointer';
-                card.addEventListener('click', () => this.showAttendancePopup(mapping.type));
+            // Buscar la tarjeta que contiene el elemento stat-value
+            const statElement = document.getElementById(mapping.statValueId);
+            if (statElement) {
+                const card = statElement.closest('.stat-card');
+                if (card) {
+                    card.style.cursor = 'pointer';
+                    card.classList.add('clickable-card');
+                    card.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.showAttendancePopup(mapping.type);
+                    });
+                    
+                    // Agregar atributo data para identificación
+                    card.setAttribute('data-attendance-type', mapping.type);
+                }
+            }
+            
+            // También buscar por selector si existe
+            const cardBySelector = document.querySelector(mapping.cardSelector);
+            if (cardBySelector && !cardBySelector.hasAttribute('data-attendance-type')) {
+                cardBySelector.style.cursor = 'pointer';
+                cardBySelector.classList.add('clickable-card');
+                cardBySelector.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.showAttendancePopup(mapping.type);
+                });
+                cardBySelector.setAttribute('data-attendance-type', mapping.type);
             }
         });
     }

@@ -448,195 +448,77 @@ function renderAttendanceTable(data) {
     tbody.innerHTML = '';
     
     if (!data || !data.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="no-data-text">No se encontraron asistencias para las últimas 20 horas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data-text">No se encontraron entradas de asistencia para las últimas 20 horas</td></tr>';
         return;
     }
     
-    // Organizar los datos por empleado, horario y fecha para poder mostrarlos agrupados
-    const asistenciasAgrupadas = {};
-    
+    // Como ahora solo mostramos entradas, simplificamos el procesamiento
     data.forEach(asistencia => {
-        // Crear una clave única para cada combinación de empleado, horario y fecha
-        const key = `${asistencia.codigo_empleado}_${asistencia.ID_HORARIO || 'default'}_${asistencia.fecha}`;
+        // Calcular estado de entrada basado en horario
+        let estadoEntrada = 'Sin horario';
+        let estadoClass = 'sin-horario';
         
-        if (!asistenciasAgrupadas[key]) {
-            asistenciasAgrupadas[key] = {
-                ID_EMPLEADO: asistencia.codigo_empleado,
-                NOMBRE: asistencia.nombre_empleado,
-                establecimiento: asistencia.establecimiento,
-                sede: asistencia.sede,
-                FECHA: asistencia.fecha,
-                HORARIO_NOMBRE: asistencia.HORARIO_NOMBRE || 'Sin horario',
-                HORA_ENTRADA_PROGRAMADA: asistencia.HORA_ENTRADA,
-                HORA_SALIDA_PROGRAMADA: asistencia.HORA_SALIDA,
-                ID_HORARIO: asistencia.ID_HORARIO,
-                ENTRADA_HORA: null,
-                ENTRADA_TARDANZA: null,
-                ENTRADA_ID: null,
-                ENTRADA_FOTO: null,
-                SALIDA_HORA: null,
-                SALIDA_TARDANZA: null,
-                SALIDA_ID: null,
-                SALIDA_FOTO: null
-            };
-        }
-        
-        // Asignar datos según el tipo (entrada o salida)
-        if (asistencia.tipo === 'ENTRADA') {
-            asistenciasAgrupadas[key].ENTRADA_HORA = asistencia.hora;
-            asistenciasAgrupadas[key].ENTRADA_TARDANZA = asistencia.tardanza;
-            asistenciasAgrupadas[key].ENTRADA_ID = asistencia.id;
-            asistenciasAgrupadas[key].ENTRADA_FOTO = asistencia.foto;
-        } else if (asistencia.tipo === 'SALIDA') {
-            asistenciasAgrupadas[key].SALIDA_HORA = asistencia.hora;
-            asistenciasAgrupadas[key].SALIDA_TARDANZA = asistencia.tardanza;
-            asistenciasAgrupadas[key].SALIDA_ID = asistencia.id;
-            asistenciasAgrupadas[key].SALIDA_FOTO = asistencia.foto;
-        }
-    });
-    
-    // Convertir el objeto en array y calcular estados
-    const asistenciasFinal = Object.values(asistenciasAgrupadas).map(att => {
-        // Calcular estado de entrada
-        let estadoEntrada = '--';
-        if (att.ENTRADA_HORA && att.HORA_ENTRADA_PROGRAMADA) {
-            const entrada_prog = new Date(`${att.FECHA}T${att.HORA_ENTRADA_PROGRAMADA}`);
-            const entrada_real = new Date(`${att.FECHA}T${att.ENTRADA_HORA}`);
+        if (asistencia.HORA_ENTRADA && asistencia.hora) {
+            const entrada_prog = new Date(`${asistencia.fecha}T${asistencia.HORA_ENTRADA}`);
+            const entrada_real = new Date(`${asistencia.fecha}T${asistencia.hora}`);
+            const tolerancia = parseInt(asistencia.TOLERANCIA || 0);
             
-            if (entrada_real < entrada_prog) {
+            const diferenciaMinutos = (entrada_real - entrada_prog) / (1000 * 60);
+            
+            if (diferenciaMinutos < 0) {
                 estadoEntrada = 'Temprano';
-            } else if (entrada_real <= new Date(entrada_prog.getTime() + (att.TOLERANCIA || 0) * 60000)) {
+                estadoClass = 'temprano';
+            } else if (diferenciaMinutos <= tolerancia) {
                 estadoEntrada = 'Puntual';
+                estadoClass = 'puntual';
             } else {
                 estadoEntrada = 'Tardanza';
+                estadoClass = 'tarde';
             }
         }
         
-        // Calcular estado de salida
-        let estadoSalida = '--';
-        if (att.SALIDA_HORA && att.HORA_SALIDA_PROGRAMADA) {
-            const salida_prog = new Date(`${att.FECHA}T${att.HORA_SALIDA_PROGRAMADA}`);
-            const salida_real = new Date(`${att.FECHA}T${att.SALIDA_HORA}`);
-            
-            if (salida_real < salida_prog) {
-                estadoSalida = 'Temprano';
-            } else {
-                estadoSalida = 'Normal';
-            }
-        }
+        // Botón de observación
+        let observacionBtn = `<button type="button" class="btn-icon btn-comment" 
+            title="${asistencia.observacion ? 'Editar observación' : 'Agregar observación'}" 
+            onclick="openObservationModal(${asistencia.id}, 'ENTRADA', '${asistencia.nombre_empleado.replace("'", "\\'")}', '${asistencia.fecha}', '${asistencia.hora}', '${(asistencia.observacion || '').replace("'", "\\'")}')">
+            <i class="fas fa-${asistencia.observacion ? 'edit' : 'comment-medical'}"></i>
+         </button>`;
         
-        return {
-            ...att,
-            ENTRADA_ESTADO: estadoEntrada,
-            SALIDA_ESTADO: estadoSalida
-        };
-    });
-    
-    // Ordenar por fecha y hora más reciente
-    asistenciasFinal.sort((a, b) => {
-        const fecha_a = new Date(a.FECHA);
-        const fecha_b = new Date(b.FECHA);
-        
-        if (fecha_a.getTime() !== fecha_b.getTime()) {
-            return fecha_b.getTime() - fecha_a.getTime(); // Ordenar por fecha descendente
-        }
-        
-        // Si tienen la misma fecha, ordenar por la hora de entrada/salida más reciente
-        const hora_a = a.ENTRADA_HORA ? new Date(`${a.FECHA}T${a.ENTRADA_HORA}`).getTime() : 
-                      (a.SALIDA_HORA ? new Date(`${a.FECHA}T${a.SALIDA_HORA}`).getTime() : 0);
-        
-        const hora_b = b.ENTRADA_HORA ? new Date(`${b.FECHA}T${b.ENTRADA_HORA}`).getTime() : 
-                      (b.SALIDA_HORA ? new Date(`${b.FECHA}T${b.SALIDA_HORA}`).getTime() : 0);
-        
-        return hora_b - hora_a;
-    });
-    
-    // Renderizar la tabla
-    asistenciasFinal.forEach(att => {
-        let accion = '';
-        
-        // Si hay entrada pero no salida para este horario, mostrar botón de salida
-        if (att.ENTRADA_HORA && !att.SALIDA_HORA) {
-            accion = `<button type="button" class="btn-primary btn-sm" onclick="registrarSalida(${att.ID_EMPLEADO}, '${att.FECHA}', ${att.ID_HORARIO})">
-                        <i class="fas fa-sign-out-alt"></i> Registrar Salida
-                      </button>`;
-        }
-        
-        // Botones de observación para entrada y salida
-        let observacionEntradaBtn = att.ENTRADA_ID ? 
-            `<button type="button" class="btn-icon btn-comment" 
-                title="${att.ENTRADA_OBSERVACION ? 'Editar observación' : 'Agregar observación'}" 
-                onclick="openObservationModal(${att.ENTRADA_ID}, 'ENTRADA', '${att.NOMBRE.replace("'", "\\'")}', '${att.FECHA}', '${att.ENTRADA_HORA}', '${(att.ENTRADA_OBSERVACION || '').replace("'", "\\'")}')">
-                <i class="fas fa-${att.ENTRADA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
-             </button>` : '';
-        
-        let observacionSalidaBtn = att.SALIDA_ID ? 
-            `<button type="button" class="btn-icon btn-comment" 
-                title="${att.SALIDA_OBSERVACION ? 'Editar observación' : 'Agregar observación'}" 
-                onclick="openObservationModal(${att.SALIDA_ID}, 'SALIDA', '${att.NOMBRE.replace("'", "\\'")}', '${att.FECHA}', '${att.SALIDA_HORA}', '${(att.SALIDA_OBSERVACION || '').replace("'", "\\'")}')">
-                <i class="fas fa-${att.SALIDA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
-             </button>` : '';
-        
-        // Formatear fotos con clase para hacerlas ampliables
-        let fotoEntrada = att.ENTRADA_FOTO ? 
-            `<img src="uploads/${att.ENTRADA_FOTO}" alt="Foto de entrada" class="asistencia-foto" 
-             onclick="openPhotoModal('uploads/${att.ENTRADA_FOTO}', '${att.NOMBRE}')">` : 
-            '-';
-            
-        let fotoSalida = att.SALIDA_FOTO ? 
-            `<img src="uploads/${att.SALIDA_FOTO}" alt="Foto de salida" class="asistencia-foto" 
-             onclick="openPhotoModal('uploads/${att.SALIDA_FOTO}', '${att.NOMBRE}')">` : 
+        // Formatear foto
+        let foto = asistencia.foto ? 
+            `<img src="uploads/${asistencia.foto}" alt="Foto de entrada" class="asistencia-foto" 
+             onclick="openPhotoModal('uploads/${asistencia.foto}', '${asistencia.nombre_empleado}')">` : 
             '-';
         
-        // Formatear horarios
-        let horarioEntrada = att.ENTRADA_HORA || '-';
-        let horarioSalida = att.SALIDA_HORA || '-';
-        
-        // Mostrar el horario programado
-        let horarioProgramado = `
-            <strong>${att.HORARIO_NOMBRE || 'Sin nombre'}</strong><br>
-            <span class="programado-info">Programado: ${att.HORA_ENTRADA_PROGRAMADA || '--:--'} - ${att.HORA_SALIDA_PROGRAMADA || '--:--'}</span><br>
-            <strong>Entrada:</strong> ${horarioEntrada}<br>
-            <strong>Salida:</strong> ${horarioSalida}
-        `;
-        
-        // Mostrar observaciones si existen
-        const observacionEntrada = att.ENTRADA_OBSERVACION ? 
-            `<div class="observacion-badge" title="${att.ENTRADA_OBSERVACION}">
-                <i class="fas fa-comment"></i> ${truncateText(att.ENTRADA_OBSERVACION, 20)}
-             </div>` : '';
-        
-        const observacionSalida = att.SALIDA_OBSERVACION ? 
-            `<div class="observacion-badge" title="${att.SALIDA_OBSERVACION}">
-                <i class="fas fa-comment"></i> ${truncateText(att.SALIDA_OBSERVACION, 20)}
+        // Mostrar observación si existe
+        const observacionBadge = asistencia.observacion ? 
+            `<div class="observacion-badge" title="${asistencia.observacion}">
+                <i class="fas fa-comment"></i> ${truncateText(asistencia.observacion, 20)}
              </div>` : '';
         
         // Resaltar la fila si coincide con el código buscado
-        const highlightClass = currentFilters.codigo && att.ID_EMPLEADO == currentFilters.codigo ? 'highlighted-row' : '';
+        const highlightClass = currentFilters.codigo && asistencia.codigo_empleado == currentFilters.codigo ? 'highlighted-row' : '';
         
         tbody.innerHTML += `
             <tr class="${highlightClass}">
-                <td>${att.ID_EMPLEADO}</td>
-                <td>${att.NOMBRE}</td>
-                <td>${att.establecimiento}</td>
-                <td>${att.sede}</td>
-                <td>${formatDate(att.FECHA)}</td>
-                <td>${horarioProgramado}</td>
+                <td>${asistencia.codigo_empleado}</td>
+                <td>${asistencia.nombre_empleado}</td>
+                <td>${asistencia.establecimiento}</td>
+                <td>${asistencia.sede}</td>
+                <td>${formatDate(asistencia.fecha)}</td>
                 <td>
-                    <strong>Entrada:</strong> <span class="status-${att.ENTRADA_ESTADO?.toLowerCase()}">${att.ENTRADA_ESTADO || '--'}</span>
-                    ${observacionEntrada}<br>
-                    <strong>Salida:</strong> <span class="status-${att.SALIDA_ESTADO?.toLowerCase()}">${att.SALIDA_ESTADO || '--'}</span>
-                    ${observacionSalida}
+                    <strong>${asistencia.HORARIO_NOMBRE || 'Sin horario'}</strong><br>
+                    <span class="programado-info">Programado: ${asistencia.HORA_ENTRADA || '--:--'} - ${asistencia.HORA_SALIDA || '--:--'}</span><br>
+                    <strong>Entrada:</strong> ${asistencia.hora}
                 </td>
                 <td>
-                    <strong>Entrada:</strong> ${fotoEntrada}<br>
-                    <strong>Salida:</strong> ${fotoSalida}
+                    <span class="status-${estadoClass}">${estadoEntrada}</span>
+                    ${observacionBadge}
                 </td>
+                <td>${foto}</td>
                 <td>
                     <div class="btn-actions">
-                        ${observacionEntradaBtn}
-                        ${observacionSalidaBtn}
-                        ${accion}
+                        ${observacionBtn}
                     </div>
                 </td>
             </tr>
