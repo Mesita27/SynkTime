@@ -161,7 +161,16 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
                     <div class="activity-section">
                         <div class="section-header">
                             <h3>Actividad Reciente</h3>
-                            <a href="attendance.php" class="btn-primary">Ver Todo</a>
+                            <div class="activity-filters">
+                                <div class="filter-group">
+                                    <label for="activityFilter">Mostrar:</label>
+                                    <select id="activityFilter" class="filter-select">
+                                        <option value="all">Todas las actividades</option>
+                                        <option value="entries">Solo entradas</option>
+                                    </select>
+                                </div>
+                                <a href="attendance.php" class="btn-primary">Ver Todo</a>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table class="activity-table">
@@ -302,6 +311,19 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
             selectFecha.addEventListener('change', cargarEstadisticas);
         }
 
+        // Evento para filtro de actividad
+        const activityFilter = document.getElementById('activityFilter');
+        if (activityFilter) {
+            activityFilter.addEventListener('change', function() {
+                const filterType = this.value;
+                if (filterType === 'entries') {
+                    cargarSoloEntradas();
+                } else {
+                    cargarEstadisticas(); // Cargar todas las actividades
+                }
+            });
+        }
+
         function cargarEstadisticas() {
             const sedeId = selectSede.value;
             const establecimientoId = selectEstablecimiento.value;
@@ -369,6 +391,60 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
                     <td colspan="5" class="no-data">Seleccione un filtro para ver la actividad.</td>
                 </tr>
             `;
+        }
+
+        function cargarSoloEntradas() {
+            const sedeId = selectSede.value;
+            const establecimientoId = selectEstablecimiento.value;
+            const fecha = selectFecha.value || initialData.fecha;
+            
+            let url = "api/get-dashboard-entries.php?";
+            if (establecimientoId) {
+                url += "establecimiento_id=" + encodeURIComponent(establecimientoId) + "&";
+            } else if (sedeId) {
+                url += "sede_id=" + encodeURIComponent(sedeId) + "&";
+            }
+            if (fecha) url += "fecha=" + encodeURIComponent(fecha) + "&";
+            
+            // Mostrar cargando solo en la tabla de actividad
+            activityTableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="no-data">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando entradas...
+                    </td>
+                </tr>
+            `;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Actualizar estadísticas (mantener lógica de horas trabajadas)
+                        if (data.estadisticas) {
+                            llegadasTemprano.textContent = data.estadisticas.llegadas_temprano || 0;
+                            llegadasTiempo.textContent = data.estadisticas.llegadas_tiempo || 0;
+                            llegadasTarde.textContent = data.estadisticas.llegadas_tarde || 0;
+                            faltas.textContent = data.estadisticas.faltas || 0;
+                            horasTrabajadas.textContent = data.estadisticas.horas_trabajadas || 0;
+                        }
+                        
+                        // Actualizar solo la tabla con entradas
+                        actualizarTablaActividad(data.entradas);
+                    } else {
+                        activityTableBody.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="no-data">No hay entradas para mostrar en la fecha seleccionada.</td>
+                            </tr>
+                        `;
+                    }
+                })
+                .catch(() => {
+                    activityTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="no-data">Error al cargar las entradas.</td>
+                        </tr>
+                    `;
+                });
         }
         function actualizarTablaActividad(actividades) {
             if (!activityTableBody) return;

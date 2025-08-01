@@ -119,7 +119,8 @@ function updateAttendanceFiltersFromForm() {
     currentFilters = {
         sede: document.getElementById('filtro_sede')?.value || '',
         establecimiento: document.getElementById('filtro_establecimiento')?.value || '',
-        codigo: document.getElementById('codigoBusqueda')?.value?.trim() || ''
+        codigo: document.getElementById('codigoBusqueda')?.value?.trim() || '',
+        tipo: document.getElementById('filtro_tipo')?.value || ''
     };
     
     // Remover filtros vacíos
@@ -292,6 +293,13 @@ async function cargarFiltros() {
             loadAttendanceDay();
         }
     });
+    
+    // Configurar evento para filtro de tipo
+    document.getElementById('filtro_tipo').addEventListener('change', function() {
+        currentPage = 1;
+        updateAttendanceFiltersFromForm();
+        loadAttendanceDay();
+    });
 }
 
 function buscarAsistencias() {
@@ -303,6 +311,7 @@ function buscarAsistencias() {
 function limpiarFiltros() {
     document.getElementById('filtro_sede').value = '';
     document.getElementById('filtro_establecimiento').value = '';
+    document.getElementById('filtro_tipo').value = '';
     document.getElementById('codigoBusqueda').value = '';
     currentFilters = {};
     currentPage = 1;
