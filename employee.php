@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/auth/session.php';
-requireAuth(); // Redirige a login si no hay sesión activa
+requireModuleAccess('empleados'); // Verificar permisos para módulo de empleados
 ?>
 <!DOCTYPE html>
 <html lang="es">

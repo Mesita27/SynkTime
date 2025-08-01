@@ -193,6 +193,9 @@ function isAdmin() {
  * Verifica si el usuario tiene permisos completos (no es solo ASISTENCIA)
  */
 function hasFullAccess() {
+ * Verifica si el usuario tiene acceso a un módulo específico
+ */
+function hasModuleAccess($module) {
     if (!isAuthenticated()) {
         return false;
     }
@@ -226,5 +229,32 @@ function getRoleBasedWhereConditions($empresaId) {
         'conditions' => [],
         'params' => []
     ];
+    $userRole = $_SESSION['rol'] ?? '';
+    
+    // Rol ASISTENCIA solo tiene acceso al módulo de asistencia
+    if ($userRole === 'ASISTENCIA') {
+        return $module === 'asistencia';
+    }
+    
+    // Otros roles tienen acceso completo por defecto
+    return true;
+}
+
+/**
+ * Requiere acceso específico a un módulo - redirige si no tiene permisos
+ */
+function requireModuleAccess($module) {
+    requireAuth(); // Primero verificar autenticación
+    
+    if (!hasModuleAccess($module)) {
+        // Si es rol ASISTENCIA y trata de acceder a otro módulo, redirigir a asistencia
+        if (hasRole('ASISTENCIA')) {
+            header('Location: attendance.php');
+        } else {
+            // Para otros casos, redirigir al dashboard
+            header('Location: dashboard.php');
+        }
+        exit;
+    }
 }
 ?>
