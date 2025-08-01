@@ -110,10 +110,11 @@ $establecimientos = $sedeDefaultId ? getEstablecimientosByEmpresa($empresaId, $s
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label for="selectEmpleado">Empleado:</label>
-                        <select id="selectEmpleado" class="filter-select">
-                            <option value="">Todos los empleados</option>
-                        </select>
+                        <label for="btnSelectEmpleados">Empleados:</label>
+                        <button type="button" id="btnSelectEmpleados" class="filter-select empleados-btn">
+                            <span class="empleados-text">Todos los empleados</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
                     </div>
                     <div class="filter-group">
                         <label for="fechaDesde">Fecha desde:</label>
@@ -240,6 +241,55 @@ $establecimientos = $sedeDefaultId ? getEstablecimientosByEmpresa($empresaId, $s
                     <button type="submit" class="btn-primary">Registrar</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para seleccionar empleados -->
+<div id="modalSelectEmpleados" class="modal">
+    <div class="modal-content modal-empleados">
+        <div class="modal-header">
+            <h3><i class="fas fa-users"></i> Seleccionar Empleados</h3>
+            <button class="modal-close" id="closeSelectEmpleados">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="empleados-search">
+                <div class="search-group">
+                    <input type="text" id="searchEmpleados" placeholder="Buscar empleados..." class="search-input">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+            </div>
+            
+            <div class="empleados-actions">
+                <button type="button" class="btn-text" id="selectAllEmpleados">
+                    <i class="fas fa-check-double"></i> Seleccionar todos
+                </button>
+                <button type="button" class="btn-text" id="deselectAllEmpleados">
+                    <i class="fas fa-times"></i> Deseleccionar todos
+                </button>
+            </div>
+            
+            <div class="empleados-list-container">
+                <div id="empleadosLoading" class="empleados-loading">
+                    <i class="fas fa-spinner fa-spin"></i> Cargando empleados...
+                </div>
+                <div id="empleadosListContent" class="empleados-list" style="display: none;">
+                    <!-- Employee checkboxes will be populated here -->
+                </div>
+                <div id="empleadosNoResults" class="empleados-no-results" style="display: none;">
+                    <i class="fas fa-info-circle"></i> No se encontraron empleados
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="selected-count">
+                    <span id="selectedCount">0</span> empleado(s) seleccionado(s)
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelSelectEmpleados">Cancelar</button>
+                    <button type="button" class="btn-primary" id="confirmSelectEmpleados">Aplicar Selección</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
