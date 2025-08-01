@@ -908,8 +908,11 @@ async function cargarEmpleadosParaRegistro() {
                     <td>${emp.ESTABLECIMIENTO || ''}</td>
                     <td>${emp.SEDE || ''}</td>
                     <td>
-                        <button type="button" class="btn-primary" onclick="openAttendancePhotoModal(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
-                            <i class="fas fa-camera"></i> Registrar
+                        <button type="button" class="btn-primary btn-sm" onclick="openBiometricVerificationModal(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
+                            <i class="fas fa-shield-alt"></i> Verificar
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="openAttendancePhotoModal(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
+                            <i class="fas fa-camera"></i> Tradicional
                         </button>
                     </td>
                 </tr>
