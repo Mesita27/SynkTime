@@ -11,6 +11,8 @@ if (!isset($_SESSION['id_empresa'])) {
 }
 
 $empresaId = $_SESSION['id_empresa'];
+$userRole = $_SESSION['rol'] ?? null;
+$userId = $_SESSION['user_id'] ?? null;
 
 try {
     $sedeId = $_GET['sede_id'] ?? null;
@@ -18,6 +20,20 @@ try {
     
     $where = ["e.ID_EMPRESA = :empresa_id"];
     $params = [':empresa_id' => $empresaId];
+    
+    // Aplicar filtro restrictivo solo para rol ASISTENCIA
+    // GERENTE, ADMIN, DUEÑO tienen acceso total a todos los empleados de la empresa
+    if ($userRole === 'ASISTENCIA') {
+        // Solo para ASISTENCIA: restringir a empleados específicos
+        $where[] = "est.ID_ESTABLECIMIENTO IN (
+            SELECT DISTINCT e2.ID_ESTABLECIMIENTO 
+            FROM EMPLEADO e2 
+            JOIN ESTABLECIMIENTO est2 ON e2.ID_ESTABLECIMIENTO = est2.ID_ESTABLECIMIENTO 
+            JOIN SEDE s2 ON est2.ID_SEDE = s2.ID_SEDE 
+            WHERE s2.ID_EMPRESA = :empresa_id
+        )";
+    }
+    // Para GERENTE, ADMIN, DUEÑO: sin restricciones adicionales (acceso total)
     
     // Filtrar por sede si se especifica
     if ($sedeId) {

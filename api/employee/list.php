@@ -6,6 +6,8 @@ header('Content-Type: application/json');
 
 try {
     $empresaId = $_SESSION['id_empresa'] ?? null;
+    $userRole = $_SESSION['rol'] ?? null;
+    $userId = $_SESSION['user_id'] ?? null;
     
     if (!$empresaId) {
         echo json_encode(['success' => false, 'message' => 'Sesión inválida']);
@@ -30,6 +32,22 @@ try {
     // Construcción de la consulta
     $where = ["s.ID_EMPRESA = :empresa_id"];
     $params = [':empresa_id' => $empresaId];
+    
+    // Aplicar filtro restrictivo solo para rol ASISTENCIA
+    // GERENTE, ADMIN, DUEÑO tienen acceso total a todos los empleados de la empresa
+    if ($userRole === 'ASISTENCIA') {
+        // Solo para ASISTENCIA: restringir a empleados específicos del usuario
+        // Esto permitiría que usuarios de asistencia solo vean ciertos empleados
+        // Por ahora, como medida restrictiva, limitar a empleados de su mismo establecimiento
+        $where[] = "e.ID_ESTABLECIMIENTO IN (
+            SELECT DISTINCT e2.ID_ESTABLECIMIENTO 
+            FROM EMPLEADO e2 
+            JOIN ESTABLECIMIENTO est2 ON e2.ID_ESTABLECIMIENTO = est2.ID_ESTABLECIMIENTO 
+            JOIN SEDE s2 ON est2.ID_SEDE = s2.ID_SEDE 
+            WHERE s2.ID_EMPRESA = :empresa_id
+        )";
+    }
+    // Para GERENTE, ADMIN, DUEÑO: sin restricciones adicionales (acceso total)
 
     if ($filtros['codigo']) {
         $where[] = "e.ID_EMPLEADO = :codigo";

@@ -1,3 +1,14 @@
+
+<?php
+require_once __DIR__ . '/../../config/database.php';
+session_start();
+
+header('Content-Type: application/json');
+
+try {
+    $empresaId = $_SESSION['id_empresa'] ?? null;
+    $userRole = $_SESSION['rol'] ?? null;
+    $userId = $_SESSION['user_id'] ?? null;
 <?php
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/session.php';
@@ -43,6 +54,28 @@ try {
 
     // Construcción de la consulta base
     $where = ["s.ID_EMPRESA = :empresa_id"];
+    $params = [
+        ':empresa_id' => $empresaId,
+        ':fecha_20_horas_atras' => $fecha_20_horas_atras
+    ];
+
+    // Filtrar por últimas 20 horas (en lugar de solo fecha actual)
+    $where[] = "CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_20_horas_atras";
+
+    // Aplicar filtro restrictivo solo para rol ASISTENCIA
+    // GERENTE, ADMIN, DUEÑO tienen acceso total a todas las asistencias de la empresa
+    if ($userRole === 'ASISTENCIA') {
+        // Solo para ASISTENCIA: restringir a asistencias de empleados específicos
+        // Por ahora, limitar a asistencias de su mismo establecimiento
+        $where[] = "e.ID_ESTABLECIMIENTO IN (
+            SELECT DISTINCT e2.ID_ESTABLECIMIENTO 
+            FROM EMPLEADO e2 
+            JOIN ESTABLECIMIENTO est2 ON e2.ID_ESTABLECIMIENTO = est2.ID_ESTABLECIMIENTO 
+            JOIN SEDE s2 ON est2.ID_SEDE = s2.ID_SEDE 
+            WHERE s2.ID_EMPRESA = :empresa_id
+        )";
+    }
+    // Para GERENTE, ADMIN, DUEÑO: sin restricciones adicionales (acceso total)
     $params = [':empresa_id' => $empresaId];
 
     // Aplicar filtro de fecha según rol

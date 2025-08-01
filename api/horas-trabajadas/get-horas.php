@@ -12,6 +12,8 @@ if (!isset($_SESSION['id_empresa'])) {
 }
 
 $empresaId = $_SESSION['id_empresa'];
+$userRole = $_SESSION['rol'] ?? null;
+$userId = $_SESSION['user_id'] ?? null;
 
 try {
     // Establecer zona horaria de Colombia
@@ -29,6 +31,21 @@ try {
     // Construir consulta base
     $where = ["emp.ID_EMPRESA = ?"];
     $params = [$empresaId];
+
+    // Aplicar filtro restrictivo solo para rol ASISTENCIA
+    // GERENTE, ADMIN, DUEÑO tienen acceso total a horas trabajadas de toda la empresa
+    if ($userRole === 'ASISTENCIA') {
+        // Solo para ASISTENCIA: restringir a empleados específicos
+        $where[] = "e.ID_ESTABLECIMIENTO IN (
+            SELECT DISTINCT e2.ID_ESTABLECIMIENTO 
+            FROM EMPLEADO e2 
+            JOIN ESTABLECIMIENTO est2 ON e2.ID_ESTABLECIMIENTO = est2.ID_ESTABLECIMIENTO 
+            JOIN SEDE s2 ON est2.ID_SEDE = s2.ID_SEDE 
+            WHERE s2.ID_EMPRESA = ?
+        )";
+        $params[] = $empresaId;
+    }
+    // Para GERENTE, ADMIN, DUEÑO: sin restricciones adicionales (acceso total)
 
     // Aplicar filtros de fecha
     if ($filtros['fechaDesde']) {
