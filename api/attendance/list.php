@@ -31,8 +31,8 @@ try {
         'establecimiento' => $_GET['establecimiento'] ?? null
     ];
 
-    // Construcción de la consulta base
-    $where = ["s.ID_EMPRESA = :empresa_id"];
+    // Construcción de la consulta base - Solo mostrar ENTRADAS
+    $where = ["s.ID_EMPRESA = :empresa_id", "a.TIPO = 'ENTRADA'"];
     $params = [
         ':empresa_id' => $empresaId,
         ':fecha_20_horas_atras' => $fecha_20_horas_atras
