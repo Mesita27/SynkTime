@@ -95,7 +95,9 @@ try {
             s.NOMBRE as sede,
             s.ID_SEDE as sede_id,
             e.FECHA_INGRESO as fecha_contratacion,
-            e.ESTADO as estado
+            e.ESTADO as estado,
+            e.FACIAL_RECOGNITION_ENABLED,
+            e.FINGERPRINT_ENABLED
         FROM EMPLEADO e
         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
         JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE

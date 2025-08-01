@@ -1,0 +1,63 @@
+/* Biometric indicators styles */
+.biometric-indicators {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.biometric-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    color: white;
+}
+
+.biometric-icon.facial {
+    background-color: #28a745;
+}
+
+.biometric-icon.fingerprint {
+    background-color: #007bff;
+}
+
+.biometric-none {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Biometric button styles */
+.btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+    border-color: #117a8b;
+}
+
+/* Modal improvements for biometric */
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsive adjustments for the biometric column */
+@media (max-width: 768px) {
+    .biometric-indicators {
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .biometric-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+    }
+}

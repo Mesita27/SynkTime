@@ -184,7 +184,7 @@ function showLoadingState() {
     if (tbody) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="loading-state">
+                <td colspan="10" class="loading-state">
                     <i class="fas fa-spinner fa-spin"></i> Cargando empleados...
                 </td>
             </tr>
@@ -197,7 +197,7 @@ function showErrorState(message) {
     if (tbody) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="error-state">
+                <td colspan="10" class="error-state">
                     <i class="fas fa-exclamation-triangle"></i> 
                     Error: ${message}
                     <button onclick="loadEmployees()" class="btn-retry">Reintentar</button>
@@ -221,7 +221,7 @@ function renderEmployeeTable(data) {
     if (!data.length) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="no-data-state">
+                <td colspan="10" class="no-data-state">
                     <i class="fas fa-users"></i>
                     No se encontraron empleados con los filtros aplicados
                 </td>
@@ -231,6 +231,24 @@ function renderEmployeeTable(data) {
     }
 
     data.forEach(emp => {
+        // Create biometric status indicators
+        let biometricStatus = '';
+        const hasFacial = emp.FACIAL_RECOGNITION_ENABLED === 'Y';
+        const hasFingerprint = emp.FINGERPRINT_ENABLED === 'Y';
+        
+        if (hasFacial || hasFingerprint) {
+            biometricStatus = '<div class="biometric-indicators">';
+            if (hasFacial) {
+                biometricStatus += '<span class="biometric-icon facial" title="Reconocimiento facial habilitado"><i class="fas fa-face-smile"></i></span>';
+            }
+            if (hasFingerprint) {
+                biometricStatus += '<span class="biometric-icon fingerprint" title="Huella dactilar habilitada"><i class="fas fa-fingerprint"></i></span>';
+            }
+            biometricStatus += '</div>';
+        } else {
+            biometricStatus = '<span class="biometric-none" title="Sin datos biométricos">-</span>';
+        }
+
         tbody.innerHTML += `
             <tr>
                 <td>${emp.id ?? ''}</td>
@@ -245,6 +263,7 @@ function renderEmployeeTable(data) {
                         ${emp.estado === 'A' ? 'Activo' : 'Inactivo'}
                     </span>
                 </td>
+                <td>${biometricStatus}</td>
                 <td>
                     <button class="btn-icon btn-edit" title="Editar" onclick="editarEmpleado('${emp.id}')">
                         <i class="fas fa-edit"></i>
@@ -447,13 +466,24 @@ function openEmployeeModal(mode, empleado = null) {
         document.getElementById('fecha_ingreso').value = empleado.fecha_contratacion || '';
         document.getElementById('estado').value = empleado.estado || 'A';
 
-        cargarSedesRegistro(empleado.sede, empleado.establecimiento);
+        // Load sedes and establishments for editing
+        cargarSedesRegistro(empleado.sede_id, empleado.establecimiento_id);
+        
+        // Show biometric button for existing employees
+        if (typeof toggleBiometricButton === 'function') {
+            toggleBiometricButton('editar', empleado);
+        }
     } else {
         document.getElementById('employeeModalTitle').textContent = 'Registrar Empleado';
         document.getElementById('employeeModalSubmitBtn').textContent = 'Registrar';
         document.getElementById('modoEmpleado').value = 'crear';
         document.getElementById('id_empleado').readOnly = false;
         cargarSedesRegistro();
+        
+        // Hide biometric button for new employees
+        if (typeof toggleBiometricButton === 'function') {
+            toggleBiometricButton('crear');
+        }
     }
 }
 
@@ -464,7 +494,7 @@ function closeEmployeeModal() {
     }
 }
 
-function cargarSedesRegistro(selectedSede = '', selectedDept = '') {
+function cargarSedesRegistro(selectedSedeId = '', selectedDeptId = '') {
     fetch('api/get-sedes.php')
         .then(r => r.json())
         .then(res => {
@@ -473,16 +503,17 @@ function cargarSedesRegistro(selectedSede = '', selectedDept = '') {
                 sedeSelect.innerHTML = '<option value="">Seleccione sede</option>';
                 if (res.sedes && res.sedes.length > 0) {
                     res.sedes.forEach(sede => {
-                        sedeSelect.innerHTML += `<option value="${sede.ID_SEDE}" ${selectedSede == sede.NOMBRE ? "selected" : ""}>${sede.NOMBRE}</option>`;
+                        const isSelected = selectedSedeId && selectedSedeId == sede.ID_SEDE ? "selected" : "";
+                        sedeSelect.innerHTML += `<option value="${sede.ID_SEDE}" ${isSelected}>${sede.NOMBRE}</option>`;
                     });
                 }
-                cargarDepartamentosRegistro(selectedDept);
+                cargarDepartamentosRegistro(selectedDeptId);
             }
         })
         .catch(error => console.error('Error al cargar sedes para registro:', error));
 }
 
-function cargarDepartamentosRegistro(selectedDept = '') {
+function cargarDepartamentosRegistro(selectedDeptId = '') {
     const sedeId = document.getElementById('sedeEmpleado')?.value;
     const depSelect = document.getElementById('departamentoEmpleado');
     
@@ -496,7 +527,8 @@ function cargarDepartamentosRegistro(selectedDept = '') {
         .then(res => {
             if (res.establecimientos && res.establecimientos.length > 0) {
                 res.establecimientos.forEach(dep => {
-                    depSelect.innerHTML += `<option value="${dep.ID_ESTABLECIMIENTO}" ${selectedDept == dep.NOMBRE ? "selected" : ""}>${dep.NOMBRE}</option>`;
+                    const isSelected = selectedDeptId && selectedDeptId == dep.ID_ESTABLECIMIENTO ? "selected" : "";
+                    depSelect.innerHTML += `<option value="${dep.ID_ESTABLECIMIENTO}" ${isSelected}>${dep.NOMBRE}</option>`;
                 });
             }
         })
