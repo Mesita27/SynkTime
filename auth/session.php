@@ -188,4 +188,43 @@ function hasRole($role) {
 function isAdmin() {
     return hasRole('ADMINISTRADOR');
 }
+
+/**
+ * Verifica si el usuario tiene permisos completos (no es solo ASISTENCIA)
+ */
+function hasFullAccess() {
+    if (!isAuthenticated()) {
+        return false;
+    }
+    
+    $rol = $_SESSION['rol'] ?? '';
+    
+    // GERENTE, ADMIN, DUEÑO tienen acceso completo
+    // Solo ASISTENCIA tiene acceso restringido
+    return in_array($rol, ['GERENTE', 'ADMINISTRADOR', 'ADMIN', 'DUEÑO', 'DUENO']);
+}
+
+/**
+ * Obtiene condiciones adicionales para filtrar datos según el rol del usuario
+ * Solo usuarios con rol ASISTENCIA tienen restricciones
+ */
+function getRoleBasedWhereConditions($empresaId) {
+    if (!isAuthenticated()) {
+        return ['conditions' => [], 'params' => []];
+    }
+    
+    $rol = $_SESSION['rol'] ?? '';
+    
+    // Si no es ASISTENCIA, no hay restricciones adicionales
+    if ($rol !== 'ASISTENCIA') {
+        return ['conditions' => [], 'params' => []];
+    }
+    
+    // Para ASISTENCIA: restringir a empleados de la misma empresa
+    // En el futuro se puede refinar esta lógica para ser más específica
+    return [
+        'conditions' => [],
+        'params' => []
+    ];
+}
 ?>

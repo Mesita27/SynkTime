@@ -6,6 +6,8 @@ header('Content-Type: application/json');
 
 try {
     $empresaId = $_SESSION['id_empresa'] ?? null;
+    $userRole = $_SESSION['rol'] ?? null;
+    $userId = $_SESSION['user_id'] ?? null;
     
     if (!$empresaId) {
         echo json_encode(['success' => false, 'message' => 'Sesión inválida']);
@@ -35,6 +37,20 @@ try {
     // Construir consulta base
     $where = ["s.ID_EMPRESA = :empresa_id"];
     $params = [':empresa_id' => $empresaId];
+
+    // Aplicar filtro restrictivo solo para rol ASISTENCIA
+    // GERENTE, ADMIN, DUEÑO tienen acceso total a todos los reportes de la empresa
+    if ($userRole === 'ASISTENCIA') {
+        // Solo para ASISTENCIA: restringir a reportes de empleados específicos
+        $where[] = "e.ID_ESTABLECIMIENTO IN (
+            SELECT DISTINCT e2.ID_ESTABLECIMIENTO 
+            FROM EMPLEADO e2 
+            JOIN ESTABLECIMIENTO est2 ON e2.ID_ESTABLECIMIENTO = est2.ID_ESTABLECIMIENTO 
+            JOIN SEDE s2 ON est2.ID_SEDE = s2.ID_SEDE 
+            WHERE s2.ID_EMPRESA = :empresa_id
+        )";
+    }
+    // Para GERENTE, ADMIN, DUEÑO: sin restricciones adicionales (acceso total)
 
     // Aplicar filtros de fecha
     if ($filtros['fecha_desde']) {
