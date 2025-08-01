@@ -268,29 +268,78 @@ function updateFingerprintStatus(text) {
 }
 
 /**
- * Simulate fingerprint scanning process
+ * Simulate fingerprint scanning process with real verification
  */
 function simulateFingerprintScan() {
     updateFingerprintStatus('Escaneando...');
     
-    // Simulate scanning process
+    if (!selectedEmployee) {
+        updateFingerprintInstruction('Error');
+        updateFingerprintStatus('No hay empleado seleccionado');
+        return;
+    }
+    
+    // Simulate fingerprint data capture
     setTimeout(() => {
-        // Simulate random success/failure
-        const success = Math.random() > 0.3; // 70% success rate
+        updateFingerprintStatus('Datos capturados, verificando...');
         
-        if (success) {
-            updateFingerprintInstruction('Verificación exitosa');
-            updateFingerprintStatus('Huella reconocida correctamente');
-            
-            setTimeout(() => {
-                processFingerprintVerification(true);
-            }, 1500);
-        } else {
-            updateFingerprintInstruction('Verificación fallida');
-            updateFingerprintStatus('Huella no reconocida. Intenta de nuevo.');
+        // Generate simulated fingerprint data
+        const fingerprintData = generateSimulatedFingerprintData();
+        
+        // Call real verification API
+        const formData = new URLSearchParams({
+            employee_id: selectedEmployee.id,
+            verification_method: 'fingerprint',
+            biometric_data: fingerprintData,
+            finger_type: 'right_index' // Default finger type
+        });
+        
+        fetch('api/biometric/verify.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.verification_result.success) {
+                const confidence = Math.round(res.verification_result.confidence * 100);
+                updateFingerprintInstruction('✅ Verificación exitosa');
+                updateFingerprintStatus(`Huella reconocida (${confidence}% de confianza)`);
+                
+                setTimeout(() => {
+                    processFingerprintVerification(true);
+                }, 1500);
+            } else {
+                const confidence = res.verification_result.confidence ? 
+                    Math.round(res.verification_result.confidence * 100) : 0;
+                updateFingerprintInstruction('❌ Verificación fallida');
+                updateFingerprintStatus(`${res.verification_result.message} (${confidence}% de confianza)`);
+                document.getElementById('retry_fingerprint_btn').style.display = 'inline-flex';
+                
+                // Show alternative methods if available
+                if (res.alternative_methods && res.alternative_methods.length > 1) {
+                    setTimeout(() => {
+                        updateFingerprintStatus('Puedes usar reconocimiento facial o verificación tradicional');
+                    }, 3000);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error in fingerprint verification:', error);
+            updateFingerprintInstruction('Error de conexión');
+            updateFingerprintStatus('No se pudo verificar. Intenta de nuevo.');
             document.getElementById('retry_fingerprint_btn').style.display = 'inline-flex';
-        }
-    }, 3000);
+        });
+    }, 2000);
+}
+
+/**
+ * Generate simulated fingerprint data for demonstration
+ */
+function generateSimulatedFingerprintData() {
+    // In production, this would come from actual fingerprint scanner
+    const timestamp = Date.now();
+    const randomData = Math.random().toString(36).substring(2, 15);
+    return btoa(`fingerprint_${timestamp}_${randomData}`);
 }
 
 /**
@@ -426,34 +475,64 @@ window.captureFaceForVerification = function() {
 };
 
 /**
- * Process facial recognition
+ * Process facial recognition with real verification
  */
 function processFacialRecognition(imageData) {
     updateFacialInstruction('Procesando...');
-    updateFacialStatus('Analizando imagen facial...');
+    updateFacialStatus('Verificando identidad facial...');
     
-    // Simulate processing time
-    setTimeout(() => {
-        // Simulate random success/failure
-        const success = Math.random() > 0.2; // 80% success rate
-        
-        if (success) {
-            updateFacialInstruction('Verificación exitosa');
-            updateFacialStatus('Rostro reconocido correctamente');
+    if (!selectedEmployee) {
+        updateFacialInstruction('Error');
+        updateFacialStatus('No hay empleado seleccionado');
+        return;
+    }
+    
+    // Call real verification API
+    const formData = new URLSearchParams({
+        employee_id: selectedEmployee.id,
+        verification_method: 'facial',
+        biometric_data: imageData
+    });
+    
+    fetch('api/biometric/verify.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.verification_result.success) {
+            const confidence = Math.round(res.verification_result.confidence * 100);
+            updateFacialInstruction('✅ Verificación exitosa');
+            updateFacialStatus(`Rostro reconocido (${confidence}% de confianza)`);
             
             setTimeout(() => {
                 registerAttendanceWithBiometric('facial', imageData);
             }, 1500);
         } else {
-            updateFacialInstruction('Verificación fallida');
-            updateFacialStatus('Rostro no reconocido. Intenta de nuevo.');
+            const confidence = res.verification_result.confidence ? 
+                Math.round(res.verification_result.confidence * 100) : 0;
+            updateFacialInstruction('❌ Verificación fallida');
+            updateFacialStatus(`${res.verification_result.message} (${confidence}% de confianza)`);
             
-            setTimeout(() => {
-                updateFacialInstruction('Posiciona tu rostro en el marco');
-                updateFacialStatus('Presiona verificar para intentar de nuevo');
-            }, 2000);
+            // Show alternative methods if available
+            if (res.alternative_methods && res.alternative_methods.length > 1) {
+                setTimeout(() => {
+                    updateFacialInstruction('Intenta otro método');
+                    updateFacialStatus('Puedes usar huella dactilar o verificación tradicional');
+                }, 3000);
+            } else {
+                setTimeout(() => {
+                    updateFacialInstruction('Posiciona tu rostro en el marco');
+                    updateFacialStatus('Presiona verificar para intentar de nuevo');
+                }, 2000);
+            }
         }
-    }, 3000);
+    })
+    .catch(error => {
+        console.error('Error in facial verification:', error);
+        updateFacialInstruction('Error de conexión');
+        updateFacialStatus('No se pudo verificar. Intenta de nuevo.');
+    });
 }
 
 // ===================================================================

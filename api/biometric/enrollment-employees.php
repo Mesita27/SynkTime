@@ -1,7 +1,7 @@
 <?php
 /**
- * API endpoint for biometric enrollment summary
- * Returns detailed enrollment status for all employees
+ * API endpoint for loading employees for biometric enrollment
+ * Returns employees with their current biometric enrollment status
  */
 
 require_once '../../config/database.php';
@@ -16,24 +16,11 @@ try {
     // Get filter parameters
     $sede = $_GET['sede'] ?? '';
     $establecimiento = $_GET['establecimiento'] ?? '';
-    $status = $_GET['status'] ?? '';
+    $codigo = $_GET['codigo'] ?? '';
 
-    // Create biometric_data table if it doesn't exist
-    $create_table_sql = "
-        CREATE TABLE IF NOT EXISTS biometric_data (
-            ID INT AUTO_INCREMENT PRIMARY KEY,
-            ID_EMPLEADO INT NOT NULL,
-            BIOMETRIC_TYPE ENUM('fingerprint', 'facial') NOT NULL,
-            FINGER_TYPE VARCHAR(20),
-            BIOMETRIC_DATA LONGTEXT,
-            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            ACTIVO TINYINT(1) DEFAULT 1,
-            FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO),
-            UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
-        )
-    ";
-    $conn->exec($create_table_sql);
+    // Initialize biometric schema if needed
+    require_once '../../init-biometric-schema.php';
+    initializeBiometricSchema($conn);
 
     // Build the query
     $sql = "
@@ -42,7 +29,9 @@ try {
             e.NOMBRE,
             e.APELLIDO,
             est.NOMBRE as ESTABLECIMIENTO,
+            est.ID_ESTABLECIMIENTO,
             s.NOMBRE as SEDE,
+            s.ID_SEDE,
             MAX(CASE WHEN bd.BIOMETRIC_TYPE = 'fingerprint' AND bd.ACTIVO = 1 THEN 1 ELSE 0 END) as has_fingerprint,
             MAX(CASE WHEN bd.BIOMETRIC_TYPE = 'facial' AND bd.ACTIVO = 1 THEN 1 ELSE 0 END) as has_facial,
             COUNT(CASE WHEN bd.BIOMETRIC_TYPE = 'fingerprint' AND bd.ACTIVO = 1 THEN 1 END) as fingerprint_count,
@@ -51,7 +40,7 @@ try {
         LEFT JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
         LEFT JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
         LEFT JOIN biometric_data bd ON e.ID_EMPLEADO = bd.ID_EMPLEADO
-        WHERE e.ACTIVO = 'S'"
+        WHERE e.ACTIVO = 'S'
     ";
 
     $params = [];
@@ -67,41 +56,58 @@ try {
         $params[] = $establecimiento;
     }
 
-    $sql .= " GROUP BY e.ID_EMPLEADO, e.NOMBRE, e.APELLIDO, est.NOMBRE, s.NOMBRE";
-
-    // Add status filter after grouping
-    if (!empty($status)) {
-        switch ($status) {
-            case 'complete':
-                $sql .= " HAVING has_fingerprint = 1 AND has_facial = 1";
-                break;
-            case 'partial':
-                $sql .= " HAVING (has_fingerprint = 1 AND has_facial = 0) OR (has_fingerprint = 0 AND has_facial = 1)";
-                break;
-            case 'none':
-                $sql .= " HAVING has_fingerprint = 0 AND has_facial = 0";
-                break;
-        }
+    if (!empty($codigo)) {
+        $sql .= " AND e.ID_EMPLEADO = ?";
+        $params[] = $codigo;
     }
 
+    $sql .= " GROUP BY e.ID_EMPLEADO, e.NOMBRE, e.APELLIDO, est.NOMBRE, est.ID_ESTABLECIMIENTO, s.NOMBRE, s.ID_SEDE";
     $sql .= " ORDER BY e.NOMBRE, e.APELLIDO";
 
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     $employees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Convert boolean values to proper boolean type
+    // Process results
     foreach ($employees as &$employee) {
         $employee['has_fingerprint'] = (bool) $employee['has_fingerprint'];
         $employee['has_facial'] = (bool) $employee['has_facial'];
         $employee['fingerprint_count'] = intval($employee['fingerprint_count']);
         $employee['facial_count'] = intval($employee['facial_count']);
+        
+        // Determine enrollment status
+        if ($employee['has_fingerprint'] && $employee['has_facial']) {
+            $employee['enrollment_status'] = 'complete';
+            $employee['enrollment_status_text'] = 'Completo';
+        } elseif ($employee['has_fingerprint'] || $employee['has_facial']) {
+            $employee['enrollment_status'] = 'partial';
+            $employee['enrollment_status_text'] = 'Parcial';
+        } else {
+            $employee['enrollment_status'] = 'none';
+            $employee['enrollment_status_text'] = 'Pendiente';
+        }
+        
+        // Build biometric status details
+        $status_details = [];
+        if ($employee['has_fingerprint']) {
+            $status_details[] = "Huella (" . $employee['fingerprint_count'] . ")";
+        }
+        if ($employee['has_facial']) {
+            $status_details[] = "Facial";
+        }
+        
+        $employee['biometric_details'] = !empty($status_details) ? implode(', ', $status_details) : 'Sin datos';
     }
 
     echo json_encode([
         'success' => true,
         'data' => $employees,
-        'total' => count($employees)
+        'total' => count($employees),
+        'filters' => [
+            'sede' => $sede,
+            'establecimiento' => $establecimiento,
+            'codigo' => $codigo
+        ]
     ]);
 
 } catch (Exception $e) {
