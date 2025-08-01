@@ -2,7 +2,12 @@
 <div class="modal" id="temprano-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3><i class="fas fa-user-clock text-success"></i> Llegadas Tempranas</h3>
+            <h3>
+                <i class="fas fa-user-clock text-success"></i> Llegadas Tempranas
+                <span class="improved-data-indicator">
+                    <i class="fas fa-check-circle"></i> Lógica Mejorada
+                </span>
+            </h3>
             <span class="modal-close" onclick="cerrarModal('temprano-modal')">&times;</span>
         </div>
         <div class="modal-body">
@@ -51,7 +56,12 @@
 <div class="modal" id="aTiempo-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3><i class="fas fa-user-check text-primary"></i> Llegadas a Tiempo</h3>
+            <h3>
+                <i class="fas fa-user-check text-primary"></i> Llegadas a Tiempo
+                <span class="improved-data-indicator">
+                    <i class="fas fa-check-circle"></i> Lógica Mejorada
+                </span>
+            </h3>
             <span class="modal-close" onclick="cerrarModal('aTiempo-modal')">&times;</span>
         </div>
         <div class="modal-body">
@@ -100,7 +110,12 @@
 <div class="modal" id="tarde-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3><i class="fas fa-user-clock text-warning"></i> Llegadas Tarde</h3>
+            <h3>
+                <i class="fas fa-user-clock text-warning"></i> Llegadas Tarde
+                <span class="improved-data-indicator">
+                    <i class="fas fa-check-circle"></i> Lógica Mejorada
+                </span>
+            </h3>
             <span class="modal-close" onclick="cerrarModal('tarde-modal')">&times;</span>
         </div>
         <div class="modal-body">
@@ -149,7 +164,12 @@
 <div class="modal" id="faltas-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3><i class="fas fa-user-times text-danger"></i> Faltas</h3>
+            <h3>
+                <i class="fas fa-user-times text-danger"></i> Faltas
+                <span class="improved-data-indicator">
+                    <i class="fas fa-check-circle"></i> Lógica Mejorada
+                </span>
+            </h3>
             <span class="modal-close" onclick="cerrarModal('faltas-modal')">&times;</span>
         </div>
         <div class="modal-body">
@@ -391,7 +411,8 @@
     color: #155724;
 }
 
-.status-badge.a-tiempo {
+.status-badge.a-tiempo,
+.status-badge.atiempo {
     background-color: rgba(75, 150, 250, 0.15);
     color: #004085;
 }
@@ -399,6 +420,32 @@
 .status-badge.tarde {
     background-color: rgba(255, 193, 7, 0.15);
     color: #856404;
+}
+
+/* Mejorar la tabla de datos */
+.data-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.data-table tbody tr:hover {
+    background-color: #e3f2fd;
+}
+
+/* Indicador de datos mejorados */
+.improved-data-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #155724;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-left: 10px;
+}
+
+.improved-data-indicator i {
+    font-size: 0.7rem;
 }
 
 @media (max-width: 768px) {
@@ -410,6 +457,11 @@
     .modal-filters {
         flex-direction: column;
         gap: 10px;
+    }
+    
+    .improved-data-indicator {
+        margin-left: 0;
+        margin-top: 5px;
     }
 }
 </style>
