@@ -8,10 +8,14 @@ class HorasTrabajadas {
         this.currentFilters = {
             sede: '',
             establecimiento: '',
-            empleado: '',
+            empleados: [], // Changed from empleado to empleados array
             fechaDesde: new Date().toISOString().split('T')[0],
             fechaHasta: new Date().toISOString().split('T')[0]
         };
+        
+        this.selectedEmpleados = [];
+        this.availableEmpleados = [];
+        this.originalEmpleados = [];
         
         this.init();
     }
@@ -39,6 +43,15 @@ class HorasTrabajadas {
         document.getElementById('btnLimpiarFiltros').addEventListener('click', this.clearFilters.bind(this));
         document.getElementById('btnRefresh').addEventListener('click', this.refreshData.bind(this));
 
+        // Employee selection
+        document.getElementById('btnSelectEmpleados').addEventListener('click', this.showEmpleadosModal.bind(this));
+        document.getElementById('closeSelectEmpleados').addEventListener('click', this.hideEmpleadosModal.bind(this));
+        document.getElementById('cancelSelectEmpleados').addEventListener('click', this.hideEmpleadosModal.bind(this));
+        document.getElementById('confirmSelectEmpleados').addEventListener('click', this.confirmEmpleadosSelection.bind(this));
+        document.getElementById('searchEmpleados').addEventListener('input', this.filterEmpleadosList.bind(this));
+        document.getElementById('selectAllEmpleados').addEventListener('click', this.selectAllEmpleados.bind(this));
+        document.getElementById('deselectAllEmpleados').addEventListener('click', this.deselectAllEmpleados.bind(this));
+
         // Export functionality
         document.getElementById('btnExportarExcel').addEventListener('click', this.exportToExcel.bind(this));
 
@@ -52,6 +65,12 @@ class HorasTrabajadas {
         document.getElementById('modalDiaCivico').addEventListener('click', (e) => {
             if (e.target.id === 'modalDiaCivico') {
                 this.hideDiaCivicoModal();
+            }
+        });
+        
+        document.getElementById('modalSelectEmpleados').addEventListener('click', (e) => {
+            if (e.target.id === 'modalSelectEmpleados') {
+                this.hideEmpleadosModal();
             }
         });
     }
@@ -72,10 +91,12 @@ class HorasTrabajadas {
         const sedeId = document.getElementById('selectSede').value;
         await this.loadEstablecimientos(sedeId);
         await this.loadEmpleados();
+        this.updateEmpleadosButton();
     }
 
     async onEstablecimientoChange() {
         await this.loadEmpleados();
+        this.updateEmpleadosButton();
     }
 
     async loadEstablecimientos(sedeId) {
@@ -103,12 +124,9 @@ class HorasTrabajadas {
     }
 
     async loadEmpleados() {
-        const select = document.getElementById('selectEmpleado');
         const sedeId = document.getElementById('selectSede').value;
         const establecimientoId = document.getElementById('selectEstablecimiento').value;
         
-        select.innerHTML = '<option value="">Todos los empleados</option>';
-
         try {
             let url = 'api/horas-trabajadas/get-empleados.php?';
             if (sedeId) url += `sede_id=${sedeId}&`;
@@ -118,12 +136,16 @@ class HorasTrabajadas {
             const data = await response.json();
             
             if (data.success && data.empleados) {
-                data.empleados.forEach(empleado => {
-                    const option = document.createElement('option');
-                    option.value = empleado.ID_EMPLEADO;
-                    option.textContent = `${empleado.NOMBRE} ${empleado.APELLIDO}`;
-                    select.appendChild(option);
-                });
+                this.availableEmpleados = data.empleados;
+                this.originalEmpleados = [...data.empleados];
+                
+                // Filter selected employees to only include those still available
+                this.selectedEmpleados = this.selectedEmpleados.filter(selectedId =>
+                    this.availableEmpleados.some(emp => emp.ID_EMPLEADO == selectedId)
+                );
+                
+                this.updateEmpleadosButton();
+                this.populateEmpleadosList();
             }
         } catch (error) {
             console.error('Error loading empleados:', error);
@@ -186,34 +208,244 @@ class HorasTrabajadas {
         this.applyFilters();
     }
 
+    updateEmpleadosButton() {
+        const btn = document.getElementById('btnSelectEmpleados');
+        const textSpan = btn.querySelector('.empleados-text');
+        
+        if (this.selectedEmpleados.length === 0) {
+            textSpan.textContent = 'Todos los empleados';
+        } else if (this.selectedEmpleados.length === 1) {
+            const empleado = this.availableEmpleados.find(emp => emp.ID_EMPLEADO == this.selectedEmpleados[0]);
+            textSpan.textContent = empleado ? `${empleado.NOMBRE} ${empleado.APELLIDO}` : '1 empleado seleccionado';
+        } else {
+            textSpan.textContent = `${this.selectedEmpleados.length} empleados seleccionados`;
+        }
+    }
+
+    showEmpleadosModal() {
+        document.getElementById('modalSelectEmpleados').style.display = 'block';
+        document.getElementById('btnSelectEmpleados').classList.add('active');
+        
+        // Load employees if not already loaded
+        if (this.availableEmpleados.length === 0) {
+            this.loadEmpleados();
+        } else {
+            this.populateEmpleadosList();
+        }
+        
+        // Focus search input
+        setTimeout(() => {
+            document.getElementById('searchEmpleados').focus();
+        }, 100);
+    }
+
+    hideEmpleadosModal() {
+        document.getElementById('modalSelectEmpleados').style.display = 'none';
+        document.getElementById('btnSelectEmpleados').classList.remove('active');
+        document.getElementById('searchEmpleados').value = '';
+        this.populateEmpleadosList(); // Reset list
+    }
+
+    populateEmpleadosList(empleados = null) {
+        const container = document.getElementById('empleadosListContent');
+        const loading = document.getElementById('empleadosLoading');
+        const noResults = document.getElementById('empleadosNoResults');
+        
+        const empleadosToShow = empleados || this.availableEmpleados;
+        
+        if (empleadosToShow.length === 0) {
+            container.style.display = 'none';
+            loading.style.display = 'none';
+            noResults.style.display = 'block';
+            this.updateSelectedCount();
+            return;
+        }
+        
+        loading.style.display = 'none';
+        noResults.style.display = 'none';
+        container.style.display = 'block';
+        
+        container.innerHTML = empleadosToShow.map(empleado => {
+            const isSelected = this.selectedEmpleados.includes(empleado.ID_EMPLEADO);
+            const initials = (empleado.NOMBRE.charAt(0) + empleado.APELLIDO.charAt(0)).toUpperCase();
+            
+            return `
+                <div class="empleado-item" data-id="${empleado.ID_EMPLEADO}">
+                    <input type="checkbox" class="empleado-checkbox" ${isSelected ? 'checked' : ''} 
+                           data-id="${empleado.ID_EMPLEADO}">
+                    <div class="empleado-info">
+                        <div class="empleado-avatar">${initials}</div>
+                        <div class="empleado-details">
+                            <div class="empleado-name">${this.escapeHtml(empleado.NOMBRE + ' ' + empleado.APELLIDO)}</div>
+                            <div class="empleado-meta">
+                                <span>#EMP${String(empleado.ID_EMPLEADO).padStart(3, '0')}</span>
+                                ${empleado.SEDE_NOMBRE ? `<span>${this.escapeHtml(empleado.SEDE_NOMBRE)}</span>` : ''}
+                                ${empleado.ESTABLECIMIENTO_NOMBRE ? `<span>${this.escapeHtml(empleado.ESTABLECIMIENTO_NOMBRE)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Bind checkbox events
+        container.querySelectorAll('.empleado-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', this.onEmpleadoToggle.bind(this));
+        });
+        
+        // Bind item click events
+        container.querySelectorAll('.empleado-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.type !== 'checkbox') {
+                    const checkbox = item.querySelector('.empleado-checkbox');
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+        
+        this.updateSelectedCount();
+    }
+
+    onEmpleadoToggle(e) {
+        const empleadoId = e.target.dataset.id;
+        const isChecked = e.target.checked;
+        
+        if (isChecked) {
+            if (!this.selectedEmpleados.includes(empleadoId)) {
+                this.selectedEmpleados.push(empleadoId);
+            }
+        } else {
+            this.selectedEmpleados = this.selectedEmpleados.filter(id => id !== empleadoId);
+        }
+        
+        this.updateSelectedCount();
+    }
+
+    filterEmpleadosList() {
+        const searchTerm = document.getElementById('searchEmpleados').value.toLowerCase();
+        
+        if (!searchTerm) {
+            this.populateEmpleadosList();
+            return;
+        }
+        
+        const filteredEmpleados = this.availableEmpleados.filter(empleado => {
+            const fullName = `${empleado.NOMBRE} ${empleado.APELLIDO}`.toLowerCase();
+            const dni = empleado.DNI || '';
+            const sede = empleado.SEDE_NOMBRE || '';
+            const establecimiento = empleado.ESTABLECIMIENTO_NOMBRE || '';
+            
+            return fullName.includes(searchTerm) ||
+                   dni.includes(searchTerm) ||
+                   sede.toLowerCase().includes(searchTerm) ||
+                   establecimiento.toLowerCase().includes(searchTerm);
+        });
+        
+        this.populateEmpleadosList(filteredEmpleados);
+    }
+
+    selectAllEmpleados() {
+        const searchTerm = document.getElementById('searchEmpleados').value.toLowerCase();
+        let empleadosToSelect = this.availableEmpleados;
+        
+        if (searchTerm) {
+            empleadosToSelect = this.availableEmpleados.filter(empleado => {
+                const fullName = `${empleado.NOMBRE} ${empleado.APELLIDO}`.toLowerCase();
+                const dni = empleado.DNI || '';
+                const sede = empleado.SEDE_NOMBRE || '';
+                const establecimiento = empleado.ESTABLECIMIENTO_NOMBRE || '';
+                
+                return fullName.includes(searchTerm) ||
+                       dni.includes(searchTerm) ||
+                       sede.toLowerCase().includes(searchTerm) ||
+                       establecimiento.toLowerCase().includes(searchTerm);
+            });
+        }
+        
+        empleadosToSelect.forEach(empleado => {
+            if (!this.selectedEmpleados.includes(empleado.ID_EMPLEADO)) {
+                this.selectedEmpleados.push(empleado.ID_EMPLEADO);
+            }
+        });
+        
+        this.populateEmpleadosList(searchTerm ? empleadosToSelect : null);
+    }
+
+    deselectAllEmpleados() {
+        const searchTerm = document.getElementById('searchEmpleados').value.toLowerCase();
+        
+        if (searchTerm) {
+            const empleadosToDeselect = this.availableEmpleados.filter(empleado => {
+                const fullName = `${empleado.NOMBRE} ${empleado.APELLIDO}`.toLowerCase();
+                const dni = empleado.DNI || '';
+                const sede = empleado.SEDE_NOMBRE || '';
+                const establecimiento = empleado.ESTABLECIMIENTO_NOMBRE || '';
+                
+                return fullName.includes(searchTerm) ||
+                       dni.includes(searchTerm) ||
+                       sede.toLowerCase().includes(searchTerm) ||
+                       establecimiento.toLowerCase().includes(searchTerm);
+            });
+            
+            empleadosToDeselect.forEach(empleado => {
+                this.selectedEmpleados = this.selectedEmpleados.filter(id => id !== empleado.ID_EMPLEADO);
+            });
+            
+            this.populateEmpleadosList(empleadosToDeselect);
+        } else {
+            this.selectedEmpleados = [];
+            this.populateEmpleadosList();
+        }
+    }
+
+    updateSelectedCount() {
+        document.getElementById('selectedCount').textContent = this.selectedEmpleados.length;
+    }
+
+    confirmEmpleadosSelection() {
+        this.currentFilters.empleados = [...this.selectedEmpleados];
+        this.updateEmpleadosButton();
+        this.hideEmpleadosModal();
+        
+        // Apply filters automatically with AJAX
+        this.applyFilters();
+    }
+
     formatDate(date) {
         return date.toISOString().split('T')[0];
     }
 
     async applyFilters() {
         this.updateCurrentFilters();
-        await this.loadHorasTrabajadas();
+        await this.loadHorasTrabajadasAjax(); // Use AJAX version
     }
 
     updateCurrentFilters() {
         this.currentFilters = {
             sede: document.getElementById('selectSede').value,
             establecimiento: document.getElementById('selectEstablecimiento').value,
-            empleado: document.getElementById('selectEmpleado').value,
+            empleados: [...this.selectedEmpleados], // Use selected employees array
             fechaDesde: document.getElementById('fechaDesde').value,
             fechaHasta: document.getElementById('fechaHasta').value
         };
     }
 
-    async loadHorasTrabajadas() {
+    async loadHorasTrabajadasAjax() {
         this.showLoading(true);
         
         try {
             const params = new URLSearchParams();
-            Object.keys(this.currentFilters).forEach(key => {
-                if (this.currentFilters[key]) {
-                    params.append(key, this.currentFilters[key]);
-                }
+            
+            // Add individual parameters
+            if (this.currentFilters.sede) params.append('sede', this.currentFilters.sede);
+            if (this.currentFilters.establecimiento) params.append('establecimiento', this.currentFilters.establecimiento);
+            if (this.currentFilters.fechaDesde) params.append('fechaDesde', this.currentFilters.fechaDesde);
+            if (this.currentFilters.fechaHasta) params.append('fechaHasta', this.currentFilters.fechaHasta);
+            
+            // Add multiple employees as separate parameters
+            this.currentFilters.empleados.forEach(empleadoId => {
+                params.append('empleados[]', empleadoId);
             });
 
             const response = await fetch(`api/horas-trabajadas/get-horas.php?${params}`);
@@ -316,7 +548,10 @@ class HorasTrabajadas {
     clearFilters() {
         document.getElementById('selectSede').value = '';
         document.getElementById('selectEstablecimiento').value = '';
-        document.getElementById('selectEmpleado').value = '';
+        
+        // Clear employee selection
+        this.selectedEmpleados = [];
+        this.updateEmpleadosButton();
         
         // Reset to today
         const today = new Date().toISOString().split('T')[0];
@@ -334,7 +569,7 @@ class HorasTrabajadas {
     }
 
     refreshData() {
-        this.applyFilters();
+        this.applyFilters(); // Use AJAX version
     }
 
     async exportToExcel() {
@@ -342,10 +577,16 @@ class HorasTrabajadas {
         
         try {
             const params = new URLSearchParams();
-            Object.keys(this.currentFilters).forEach(key => {
-                if (this.currentFilters[key]) {
-                    params.append(key, this.currentFilters[key]);
-                }
+            
+            // Add individual parameters
+            if (this.currentFilters.sede) params.append('sede', this.currentFilters.sede);
+            if (this.currentFilters.establecimiento) params.append('establecimiento', this.currentFilters.establecimiento);
+            if (this.currentFilters.fechaDesde) params.append('fechaDesde', this.currentFilters.fechaDesde);
+            if (this.currentFilters.fechaHasta) params.append('fechaHasta', this.currentFilters.fechaHasta);
+            
+            // Add multiple employees as separate parameters
+            this.currentFilters.empleados.forEach(empleadoId => {
+                params.append('empleados[]', empleadoId);
             });
 
             // Create a temporary link to download the file
