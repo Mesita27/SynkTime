@@ -13,23 +13,8 @@ requireAuth();
 header('Content-Type: application/json');
 
 try {
-    // Create biometric_data table if it doesn't exist
-    $create_table_sql = "
-        CREATE TABLE IF NOT EXISTS biometric_data (
-            ID INT AUTO_INCREMENT PRIMARY KEY,
-            ID_EMPLEADO INT NOT NULL,
-            BIOMETRIC_TYPE ENUM('fingerprint', 'facial') NOT NULL,
-            FINGER_TYPE VARCHAR(20),
-            BIOMETRIC_DATA LONGTEXT,
-            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            ACTIVO TINYINT(1) DEFAULT 1,
-            FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO),
-            UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
-        )
-    ";
-    $conn->exec($create_table_sql);
-
+    // Tables are created in database.php, no need to create them here
+    
     // Get fingerprint enrollment count
     $stmt = $conn->prepare("
         SELECT COUNT(DISTINCT ID_EMPLEADO) as count 
