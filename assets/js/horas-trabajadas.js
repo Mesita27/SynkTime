@@ -1,4 +1,58 @@
 /**
+ * URL State Manager for AJAX Navigation
+ * Handles browser history and URL parameter management
+ */
+class URLStateManager {
+    constructor() {
+        this.baseURL = window.location.pathname;
+    }
+
+    getFiltersFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        const filters = {
+            sede: urlParams.get('sede') || '',
+            establecimiento: urlParams.get('establecimiento') || '',
+            empleados: urlParams.get('empleados') ? urlParams.get('empleados').split(',') : [],
+            fechaDesde: urlParams.get('fechaDesde') || new Date().toISOString().split('T')[0],
+            fechaHasta: urlParams.get('fechaHasta') || new Date().toISOString().split('T')[0]
+        };
+
+        // Only return filters if we have URL parameters
+        return window.location.search ? filters : null;
+    }
+
+    updateURL(filters) {
+        const url = this.buildURL(filters);
+        
+        // Update URL without reloading page
+        if (url !== window.location.pathname + window.location.search) {
+            history.replaceState({ filters: { ...filters } }, '', url);
+        }
+    }
+
+    buildURL(filters) {
+        const params = new URLSearchParams();
+        
+        // Only add non-empty parameters
+        if (filters.sede) params.set('sede', filters.sede);
+        if (filters.establecimiento) params.set('establecimiento', filters.establecimiento);
+        if (filters.empleados && filters.empleados.length > 0) {
+            params.set('empleados', filters.empleados.join(','));
+        }
+        if (filters.fechaDesde) params.set('fechaDesde', filters.fechaDesde);
+        if (filters.fechaHasta) params.set('fechaHasta', filters.fechaHasta);
+
+        const queryString = params.toString();
+        return this.baseURL + (queryString ? '?' + queryString : '');
+    }
+
+    clearURL() {
+        history.replaceState({}, '', this.baseURL);
+    }
+}
+
+/**
  * Horas Trabajadas Module
  * Handles worked hours management functionality
  */
@@ -13,15 +67,53 @@ class HorasTrabajadas {
             fechaHasta: new Date().toISOString().split('T')[0]
         };
         
+        this.urlStateManager = new URLStateManager();
         this.init();
     }
 
     init() {
         this.bindEvents();
         this.setupDateRestrictions();
-        this.loadInitialData();
-        this.setQuickFilter('hoy'); // Set default filter
+        this.initializeFromURL(); // Load state from URL first
         this.initializeEmployeeSelector();
+    }
+
+    initializeFromURL() {
+        // Load filters from URL parameters
+        const urlFilters = this.urlStateManager.getFiltersFromURL();
+        
+        if (urlFilters) {
+            // Apply URL filters to form elements
+            if (urlFilters.sede) document.getElementById('selectSede').value = urlFilters.sede;
+            if (urlFilters.establecimiento) document.getElementById('selectEstablecimiento').value = urlFilters.establecimiento;
+            if (urlFilters.fechaDesde) document.getElementById('fechaDesde').value = urlFilters.fechaDesde;
+            if (urlFilters.fechaHasta) document.getElementById('fechaHasta').value = urlFilters.fechaHasta;
+            if (urlFilters.empleados) this.currentFilters.empleados = urlFilters.empleados;
+            
+            // Load dependent data and apply filters
+            this.loadInitialDataWithURL();
+        } else {
+            this.loadInitialData();
+            this.setQuickFilter('hoy'); // Set default filter only if no URL state
+        }
+    }
+
+    async loadInitialDataWithURL() {
+        // Load establishments based on sede from URL
+        const sedeId = document.getElementById('selectSede').value;
+        if (sedeId) {
+            await this.loadEstablecimientos(sedeId);
+            
+            // Set establecimiento from URL after loading
+            const urlFilters = this.urlStateManager.getFiltersFromURL();
+            if (urlFilters.establecimiento) {
+                document.getElementById('selectEstablecimiento').value = urlFilters.establecimiento;
+            }
+        }
+        
+        // Update employee selection display and apply filters
+        this.updateEmployeeSelectionDisplay();
+        this.applyFilters();
     }
 
     initializeEmployeeSelector() {
@@ -31,6 +123,13 @@ class HorasTrabajadas {
                 this.handleEmployeeSelectionChange(selectedEmployeeIds);
             });
         }
+
+        // Set up browser navigation
+        window.addEventListener('popstate', (event) => {
+            if (event.state && event.state.filters) {
+                this.loadStateFromHistory(event.state.filters);
+            }
+        });
     }
 
     bindEvents() {
@@ -78,7 +177,9 @@ class HorasTrabajadas {
     }
 
     async loadInitialData() {
-        this.applyFilters();
+        // Apply filters without URL update (since this is initial load)
+        this.updateCurrentFilters();
+        await this.loadHorasTrabajadas();
     }
 
     async onSedeChange() {
@@ -214,6 +315,7 @@ class HorasTrabajadas {
         document.getElementById('fechaDesde').value = fechaDesde;
         document.getElementById('fechaHasta').value = fechaHasta;
         
+        // Apply filters with URL update
         this.applyFilters();
     }
 
@@ -223,7 +325,60 @@ class HorasTrabajadas {
 
     async applyFilters() {
         this.updateCurrentFilters();
+        this.updateURLState(); // Update URL when filters change
         await this.loadHorasTrabajadas();
+    }
+
+    updateURLState() {
+        // Update URL with current filters for bookmarking and sharing
+        this.urlStateManager.updateURL(this.currentFilters);
+        
+        // Add to browser history
+        const state = { filters: { ...this.currentFilters } };
+        const url = this.urlStateManager.buildURL(this.currentFilters);
+        history.pushState(state, '', url);
+        
+        // Show brief feedback that URL was updated
+        this.showURLStateIndicator('Filtros guardados en URL');
+    }
+
+    showURLStateIndicator(message) {
+        // Create or update the URL state indicator
+        let indicator = document.getElementById('urlStateIndicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'urlStateIndicator';
+            indicator.className = 'url-state-indicator';
+            document.body.appendChild(indicator);
+        }
+        
+        indicator.textContent = message;
+        indicator.classList.add('show', 'success');
+        
+        // Hide after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show', 'success');
+        }, 2000);
+    }
+
+    loadStateFromHistory(filters) {
+        // Load state from browser history navigation
+        this.currentFilters = { ...filters };
+        
+        // Update form elements
+        document.getElementById('selectSede').value = filters.sede || '';
+        document.getElementById('selectEstablecimiento').value = filters.establecimiento || '';
+        document.getElementById('fechaDesde').value = filters.fechaDesde;
+        document.getElementById('fechaHasta').value = filters.fechaHasta;
+        
+        // Update employee selection
+        this.updateEmployeeSelectionDisplay();
+        
+        // Reload dependent data
+        this.loadEstablecimientos(filters.sede || '');
+        
+        // Apply filters without updating URL (to avoid loop)
+        this.loadHorasTrabajadas();
     }
 
     updateCurrentFilters() {
@@ -385,6 +540,9 @@ class HorasTrabajadas {
         
         // Reset establishments
         this.loadEstablecimientos('');
+        
+        // Clear URL parameters
+        this.urlStateManager.clearURL();
         
         this.applyFilters();
     }

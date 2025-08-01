@@ -610,6 +610,41 @@
     color: var(--text-secondary);
 }
 
+/* URL State indicator */
+.url-state-indicator {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    z-index: 999;
+    opacity: 0;
+    transform: translateX(100px);
+    transition: all 0.3s ease;
+}
+
+.url-state-indicator.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.url-state-indicator.success {
+    background: var(--success-color);
+}
+
+/* Enhanced loading states */
+.btn-employee-selector.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.btn-employee-selector.loading .fa-chevron-down {
+    animation: spin 1s linear infinite;
+}
+
 /* Dark mode support (if implemented) */
 @media (prefers-color-scheme: dark) {
     :root {
