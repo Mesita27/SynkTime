@@ -49,13 +49,14 @@
               <th>Nombre</th>
               <th>Establecimiento</th>
               <th>Sede</th>
+              <th>Biométrico</th>
               <th>Acción</th>
             </tr>
           </thead>
           <tbody id="attendanceRegisterTableBody">
             <!-- Aquí se cargan los empleados disponibles -->
             <tr>
-              <td colspan="5" class="loading-text">
+              <td colspan="6" class="loading-text">
                 <i class="fas fa-spinner fa-spin"></i> Cargando empleados...
               </td>
             </tr>

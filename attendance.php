@@ -17,6 +17,7 @@ requireAuth();
     <link rel="stylesheet" href="assets/css/attendance.css">
     <link rel="stylesheet" href="assets/css/pagination.css">
     <link rel="stylesheet" href="assets/css/attendance-pagination.css">
+    <link rel="stylesheet" href="assets/css/biometric.css">
 </head>
 <body>
 <div class="app-container">
@@ -86,10 +87,14 @@ requireAuth();
             <?php include 'components/attendance_register_modal.php'; ?>
             <?php include 'components/attendance_photo_modal.php'; ?>
             <?php include 'components/attendance_observation_modal.php'; ?>
+            <?php include 'components/biometric_verification_modal.php'; ?>
         </main>
     </div>
 </div>
+<!-- Face-api.js for biometric verification -->
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
 <script src="assets/js/layout.js"></script>
+<script src="assets/js/biometric-verification.js"></script>
 <script src="assets/js/attendance.js"></script>
 </body>
 </html>
