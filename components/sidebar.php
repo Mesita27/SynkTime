@@ -35,6 +35,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="biometric-enrollment.php" class="nav-link<?php if(basename($_SERVER['PHP_SELF']) == 'biometric-enrollment.php') echo ' active'; ?>">
+                        <i class="fas fa-fingerprint"></i>
+                        <span>Inscripción Biométrica</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="schedules.php" class="nav-link<?php if(basename($_SERVER['PHP_SELF']) == 'schedules.php') echo ' active'; ?>">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Horarios</span>

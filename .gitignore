@@ -1,0 +1,62 @@
+# SynkTime - Biometric Module Exclusions
+
+# Temporary biometric data (never commit)
+/tmp/biometric/*
+/uploads/temp_*
+*.tmp
+*.temp
+
+# Environment and config files with sensitive data
+.env
+config/biometric_keys.php
+config/device_config.php
+
+# Logs
+logs/
+*.log
+error.log
+access.log
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Biometric test data (development only)
+test_biometric_data/
+sample_fingerprints/
+sample_faces/
+
+# Node modules if using npm for frontend tools
+node_modules/
+npm-debug.log*
+
+# Composer dependencies
+vendor/
+
+# Database backup files
+*.sql.gz
+*.sql.bak
+biometric_backup_*
+
+# Cache files
+cache/
+*.cache
+
+# Session files
+sessions/
+
+# Compiled assets (if using build tools)
+assets/dist/
+assets/build/
