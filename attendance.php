@@ -18,6 +18,7 @@ requirePageAccess(); // Esto reemplaza requireAuth() y agrega verificación de r
     <link rel="stylesheet" href="assets/css/attendance.css">
     <link rel="stylesheet" href="assets/css/pagination.css">
     <link rel="stylesheet" href="assets/css/attendance-pagination.css">
+    <link rel="stylesheet" href="assets/css/biometric.css">
 </head>
 <body>
 <div class="app-container">
@@ -100,6 +101,7 @@ requirePageAccess(); // Esto reemplaza requireAuth() y agrega verificación de r
             <?php include 'components/attendance_register_modal.php'; ?>
             <?php include 'components/attendance_photo_modal.php'; ?>
             <?php include 'components/attendance_observation_modal.php'; ?>
+            <?php include 'components/biometric_modals.php'; ?>
         </main>
     </div>
 </div>
@@ -111,5 +113,10 @@ window.isAttendanceUser = <?php echo isAttendanceUser() ? 'true' : 'false'; ?>;
 </script>
 <script src="assets/js/layout.js"></script>
 <script src="assets/js/attendance.js"></script>
+</body>
+</div>
+<script src="assets/js/layout.js"></script>
+<script src="assets/js/attendance.js"></script>
+<script src="assets/js/biometric.js"></script>
 </body>
 </html>

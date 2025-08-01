@@ -1,0 +1,561 @@
+
+/* Biometric indicators styles */
+.biometric-indicators {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.biometric-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    color: white;
+}
+
+.biometric-icon.facial {
+    background-color: #28a745;
+}
+
+.biometric-icon.fingerprint {
+    background-color: #007bff;
+}
+
+.biometric-none {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Biometric button styles */
+.btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+    border-color: #117a8b;
+}
+
+/* Modal improvements for biometric */
+.modal.show {
+
+/* ===========================================================================
+   BIOMETRIC RECOGNITION SYSTEM STYLES
+   SynkTime - Attendance Management System
+   =========================================================================== */
+
+/* Biometric Selection Modal */
+.biometric-selection-modal {
+    max-width: 600px;
+    width: 90%;
+}
+
+.employee-info-display {
+    margin-bottom: 1.5rem;
+}
+
+.employee-card {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 1rem;
+    color: white;
+    margin-bottom: 1rem;
+}
+
+.employee-avatar {
+    font-size: 3rem;
+    margin-right: 1rem;
+    opacity: 0.9;
+}
+
+.employee-details h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.employee-details p {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.employee-details .label {
+    font-weight: 500;
+}
+
+/* Biometric Options */
+.biometric-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.biometric-option {
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.biometric-option:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+}
+
+.biometric-option.selected {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+}
+
+.biometric-option.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f8f9fa;
+}
+
+.biometric-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #007bff;
+    transition: color 0.3s ease;
+}
+
+.biometric-option.selected .biometric-icon {
+    color: white;
+}
+
+.biometric-option.disabled .biometric-icon {
+    color: #6c757d;
+}
+
+.biometric-content h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.biometric-content p {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.biometric-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.biometric-status i {
+    margin-right: 0.5rem;
+}
+
+.biometric-status.available {
+    color: #28a745;
+}
+
+.biometric-status.unavailable {
+    color: #dc3545;
+}
+
+.biometric-option.selected .biometric-status {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Biometric Info */
+.biometric-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.info-item:last-child {
+    margin-bottom: 0;
+}
+
+.info-item i {
+    margin-right: 0.75rem;
+    color: #007bff;
+    width: 16px;
+    text-align: center;
+}
+
+/* Fingerprint Verification Modal */
+.fingerprint-modal {
+    max-width: 500px;
+    width: 90%;
+}
+
+.fingerprint-verification-area {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.fingerprint-scanner {
+    width: 200px;
+    height: 200px;
+    border: 3px solid #e1e5e9;
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, #f8f9fa 0%, #e9ecef 100%);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.fingerprint-scanner.active {
+    border-color: #007bff;
+    background: radial-gradient(circle, #e3f2fd 0%, #bbdefb 100%);
+    animation: fingerprint-pulse 2s infinite;
+}
+
+.fingerprint-scanner.success {
+    border-color: #28a745;
+    background: radial-gradient(circle, #d4edda 0%, #c3e6cb 100%);
+}
+
+.fingerprint-scanner.error {
+    border-color: #dc3545;
+    background: radial-gradient(circle, #f8d7da 0%, #f5c6cb 100%);
+    animation: fingerprint-shake 0.5s ease-in-out;
+}
+
+.fingerprint-animation {
+    font-size: 4rem;
+    color: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.fingerprint-scanner.active .fingerprint-animation {
+    color: #007bff;
+    animation: fingerprint-rotate 2s infinite linear;
+}
+
+.fingerprint-scanner.success .fingerprint-animation {
+    color: #28a745;
+}
+
+.fingerprint-scanner.error .fingerprint-animation {
+    color: #dc3545;
+}
+
+.scanner-status {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.status-text {
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* Facial Recognition Modal */
+.facial-modal {
+    max-width: 600px;
+    width: 90%;
+}
+
+.facial-verification-area {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.camera-container {
+    width: 400px;
+    height: 300px;
+    margin: 0 auto 1.5rem;
+    border: 2px solid #e1e5e9;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* Responsive adjustments for the biometric column */
+@media (max-width: 768px) {
+    .biometric-indicators {
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .biometric-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+
+.camera-container.active {
+    border-color: #007bff;
+}
+
+#facialVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#facialCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.camera-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.face-outline {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 180px;
+    height: 220px;
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.scanning-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #007bff, transparent);
+    animation: facial-scan 2s infinite;
+}
+
+.camera-status {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+}
+
+.camera-status i {
+    margin-right: 0.5rem;
+}
+
+/* Progress and Results */
+.verification-progress {
+    margin: 1.5rem 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e1e5e9;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    animation: progress-shimmer 1.5s infinite;
+}
+
+.progress-text {
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 500;
+}
+
+.verification-result {
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.verification-result.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.verification-result.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.result-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.result-message {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+/* Instructions */
+.fingerprint-instructions,
+.facial-instructions {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.instruction-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.instruction-item:last-child {
+    margin-bottom: 0;
+}
+
+.instruction-item i {
+    margin-right: 0.75rem;
+    color: #007bff;
+    width: 16px;
+    text-align: center;
+}
+
+/* Animations */
+@keyframes fingerprint-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4); }
+    50% { box-shadow: 0 0 0 20px rgba(0, 123, 255, 0.1); }
+    100% { box-shadow: 0 0 0 40px rgba(0, 123, 255, 0); }
+}
+
+@keyframes fingerprint-rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes fingerprint-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+@keyframes facial-scan {
+    0% { top: 0; opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { top: 100%; opacity: 1; }
+}
+
+@keyframes progress-shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .biometric-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .camera-container {
+        width: 100%;
+        max-width: 350px;
+        height: 250px;
+    }
+    
+    .fingerprint-scanner {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .fingerprint-animation {
+        font-size: 3rem;
+    }
+    
+    .face-outline {
+        width: 140px;
+        height: 180px;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .biometric-option {
+        background: #2d3436;
+        border-color: #636e72;
+        color: #ddd;
+    }
+    
+    .biometric-option:hover {
+        border-color: #74b9ff;
+    }
+    
+    .fingerprint-scanner {
+        background: radial-gradient(circle, #2d3436 0%, #636e72 100%);
+        border-color: #636e72;
+    }
+    
+    .camera-container {
+        border-color: #636e72;
+    }
+    
+    .biometric-info,
+    .fingerprint-instructions,
+    .facial-instructions {
+        background: #2d3436;
+        color: #ddd;
+
+    }
+}

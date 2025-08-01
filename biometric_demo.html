@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Sistema Biométrico SynkTime</title>
+    <link rel="stylesheet" href="assets/css/layout.css">
+    <link rel="stylesheet" href="assets/css/biometric.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .demo-header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .demo-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        .demo-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .demo-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .demo-btn.primary {
+            background: #007bff;
+            color: white;
+        }
+        .demo-btn.primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+        .demo-btn.secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .demo-btn.secondary:hover {
+            background: #545b62;
+        }
+        .demo-info {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 0 8px 8px 0;
+        }
+        .demo-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .feature-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .feature-card i {
+            font-size: 3rem;
+            color: #007bff;
+            margin-bottom: 1rem;
+        }
+        .feature-card h3 {
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        .feature-card p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .demo-status {
+            text-align: center;
+            padding: 1rem;
+            background: #e9ecef;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1><i class="fas fa-fingerprint"></i> Sistema Biométrico SynkTime</h1>
+            <p>Demostración del sistema de reconocimiento biométrico para registro de asistencia</p>
+        </div>
+
+        <div class="demo-info">
+            <strong><i class="fas fa-info-circle"></i> Información:</strong>
+            Esta es una demostración del sistema biométrico implementado. El sistema incluye verificación por huella digital usando WebAuthn API y reconocimiento facial usando face-api.js. Para una funcionalidad completa, se requiere HTTPS y dispositivos compatibles.
+        </div>
+
+        <div class="demo-features">
+            <div class="feature-card">
+                <i class="fas fa-fingerprint"></i>
+                <h3>Huella Digital</h3>
+                <p>Verificación rápida y segura mediante lectores biométricos compatibles con WebAuthn</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-user-check"></i>
+                <h3>Reconocimiento Facial</h3>
+                <p>Análisis facial avanzado usando inteligencia artificial en el navegador</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-shield-alt"></i>
+                <h3>Seguridad</h3>
+                <p>Datos encriptados y almacenamiento seguro de templates biométricos</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-mobile-alt"></i>
+                <h3>Compatibilidad</h3>
+                <p>Funciona en dispositivos móviles, tablets y computadoras modernas</p>
+            </div>
+        </div>
+
+        <div class="demo-controls">
+            <button class="demo-btn primary" onclick="showBiometricDemo()">
+                <i class="fas fa-fingerprint"></i>
+                Demostrar Verificación Biométrica
+            </button>
+            <button class="demo-btn secondary" onclick="showSystemInfo()">
+                <i class="fas fa-info"></i>
+                Información del Sistema
+            </button>
+        </div>
+
+        <div class="demo-status" id="demoStatus">
+            <p><i class="fas fa-rocket"></i> Sistema biométrico listo para demostración</p>
+        </div>
+    </div>
+
+    <!-- Include the biometric modals -->
+    <?php include 'components/biometric_modals.php'; ?>
+
+    <script>
+        // Demo employee data
+        const demoEmployee = {
+            id: 1001,
+            nombre: 'Juan Carlos Pérez',
+            codigo: 'EMP001',
+            establecimiento: 'Oficina Central',
+            sede: 'Sede Principal'
+        };
+
+        // Biometric config for demo
+        let biometricConfig = {
+            fingerprintEnabled: true,
+            facialEnabled: true,
+            fingerprintConfidenceThreshold: 80.0,
+            facialConfidenceThreshold: 85.0,
+            maxVerificationAttempts: 3,
+            verificationTimeout: 30000
+        };
+
+        function showBiometricDemo() {
+            updateDemoStatus('<i class="fas fa-spinner fa-spin"></i> Iniciando demostración biométrica...', 'info');
+            
+            setTimeout(() => {
+                if (typeof openBiometricSelectionModal === 'function') {
+                    openBiometricSelectionModal(demoEmployee);
+                } else {
+                    // Simulate the modal opening
+                    document.getElementById('biometricSelectionModal').classList.add('show');
+                    updateEmployeeInfoDisplay(demoEmployee);
+                    simulateBiometricAvailability();
+                }
+                updateDemoStatus('<i class="fas fa-check"></i> Modal de selección biométrica abierto', 'success');
+            }, 1000);
+        }
+
+        function showSystemInfo() {
+            updateDemoStatus('<i class="fas fa-info-circle"></i> Características implementadas: WebAuthn para huellas, face-api.js para rostros, encriptación de datos biométricos, logging de auditoría', 'info');
+        }
+
+        function updateDemoStatus(message, type = 'info') {
+            const status = document.getElementById('demoStatus');
+            status.innerHTML = `<p>${message}</p>`;
+            
+            // Update styling based on type
+            status.style.background = type === 'success' ? '#d4edda' : 
+                                     type === 'error' ? '#f8d7da' : '#e9ecef';
+            status.style.color = type === 'success' ? '#155724' : 
+                                type === 'error' ? '#721c24' : '#495057';
+        }
+
+        function updateEmployeeInfoDisplay(employee) {
+            const employeeInfo = document.getElementById('biometricEmployeeInfo');
+            if (employeeInfo) {
+                document.getElementById('biometric_empleado_nombre').textContent = employee.nombre;
+                document.getElementById('biometric_empleado_codigo').textContent = employee.codigo;
+                document.getElementById('biometric_empleado_establecimiento').textContent = employee.establecimiento;
+                document.getElementById('biometric_empleado_sede').textContent = employee.sede;
+                employeeInfo.style.display = 'block';
+            }
+        }
+
+        function simulateBiometricAvailability() {
+            // Simulate that both methods are available
+            const fingerprintStatus = document.getElementById('fingerprintStatus');
+            const facialStatus = document.getElementById('facialStatus');
+            
+            if (fingerprintStatus) {
+                fingerprintStatus.innerHTML = '<i class="fas fa-check-circle"></i> Disponible (Demo)';
+                fingerprintStatus.className = 'biometric-status available';
+            }
+            
+            if (facialStatus) {
+                facialStatus.innerHTML = '<i class="fas fa-check-circle"></i> Disponible (Demo)';
+                facialStatus.className = 'biometric-status available';
+            }
+        }
+
+        // Close modal functions
+        function closeBiometricSelectionModal() {
+            document.getElementById('biometricSelectionModal').classList.remove('show');
+            updateDemoStatus('<i class="fas fa-times"></i> Modal cerrado', 'info');
+        }
+
+        function closeFingerprintModal() {
+            document.getElementById('fingerprintVerificationModal').classList.remove('show');
+            updateDemoStatus('<i class="fas fa-times"></i> Verificación de huella cancelada', 'info');
+        }
+
+        function closeFacialModal() {
+            document.getElementById('facialVerificationModal').classList.remove('show');
+            updateDemoStatus('<i class="fas fa-times"></i> Reconocimiento facial cancelado', 'info');
+        }
+
+        function selectBiometricMethod(method) {
+            // Remove previous selections
+            document.querySelectorAll('.biometric-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Select current method
+            const option = document.getElementById(method + 'Option');
+            if (option) {
+                option.classList.add('selected');
+                updateDemoStatus(`<i class="fas fa-check"></i> Método seleccionado: ${method === 'fingerprint' ? 'Huella Digital' : 'Reconocimiento Facial'}`, 'success');
+                
+                setTimeout(() => {
+                    if (method === 'fingerprint') {
+                        openFingerprintDemo();
+                    } else if (method === 'facial') {
+                        openFacialDemo();
+                    }
+                }, 500);
+            }
+        }
+
+        function openFingerprintDemo() {
+            closeBiometricSelectionModal();
+            document.getElementById('fingerprintVerificationModal').classList.add('show');
+            updateDemoStatus('<i class="fas fa-fingerprint"></i> Demo de verificación de huella digital abierto', 'info');
+        }
+
+        function openFacialDemo() {
+            closeBiometricSelectionModal();
+            document.getElementById('facialVerificationModal').classList.add('show');
+            updateDemoStatus('<i class="fas fa-user-check"></i> Demo de reconocimiento facial abierto', 'info');
+        }
+
+        function startFingerprintVerification() {
+            updateDemoStatus('<i class="fas fa-spinner fa-spin"></i> Simulando verificación de huella digital...', 'info');
+            
+            // Simulate verification process
+            setTimeout(() => {
+                const success = Math.random() > 0.3; // 70% success rate for demo
+                if (success) {
+                    updateDemoStatus('<i class="fas fa-check"></i> ¡Huella digital verificada exitosamente! (Demo)', 'success');
+                } else {
+                    updateDemoStatus('<i class="fas fa-times"></i> Verificación de huella fallida (Demo)', 'error');
+                }
+            }, 3000);
+        }
+
+        function startFacialVerification() {
+            updateDemoStatus('<i class="fas fa-spinner fa-spin"></i> Simulando reconocimiento facial...', 'info');
+            
+            // Simulate verification process
+            setTimeout(() => {
+                const success = Math.random() > 0.2; // 80% success rate for demo
+                if (success) {
+                    updateDemoStatus('<i class="fas fa-check"></i> ¡Rostro verificado exitosamente! (Demo)', 'success');
+                } else {
+                    updateDemoStatus('<i class="fas fa-times"></i> Reconocimiento facial fallido (Demo)', 'error');
+                }
+            }, 4000);
+        }
+
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDemoStatus('<i class="fas fa-check"></i> Sistema biométrico cargado y listo para demostración', 'success');
+        });
+    </script>
+</body>
+</html>

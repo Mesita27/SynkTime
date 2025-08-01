@@ -17,6 +17,7 @@ requirePageAccess(); // Verificar autenticación y autorización de página
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/layout.css">
     <link rel="stylesheet" href="assets/css/employee.css">
+    <link rel="stylesheet" href="assets/css/biometric.css">
 </head>
 <body>
 <div class="app-container">
@@ -44,6 +45,7 @@ requirePageAccess(); // Verificar autenticación y autorización de página
                             <th>Sede</th>
                             <th>Fecha contratación</th>
                             <th>Estado</th>
+                            <th>Biométrico</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -60,6 +62,7 @@ requirePageAccess(); // Verificar autenticación y autorización de página
 <script src="assets/js/query.js"></script>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/employee.js"></script>
+<script src="assets/js/biometric.js"></script>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </body>
 </html>

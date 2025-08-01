@@ -945,7 +945,28 @@ async function cargarEmpleadosParaRegistro() {
 // ===========================================================================
 // 9. MODAL DE FOTO PARA REGISTRO (EXISTENTE MANTENIDA)
 // ===========================================================================
-window.openAttendancePhotoModal = function(id_empleado) {
+window.openAttendancePhotoModal = function(id_empleado, nombre_empleado) {
+    // Get employee information for biometric verification
+    const employee = {
+        id: id_empleado,
+        nombre: nombre_empleado,
+        codigo: id_empleado, // Assuming ID is used as code
+        establecimiento: 'N/A', // This should be fetched from employee data
+        sede: 'N/A' // This should be fetched from employee data
+    };
+    
+    // Check if biometric verification is available and enabled
+    if (typeof showAttendanceWithBiometric === 'function') {
+        // Use biometric verification
+        showAttendanceWithBiometric(employee);
+    } else {
+        // Fallback to original photo modal
+        showAttendancePhotoModalOriginal(id_empleado, nombre_empleado);
+    }
+};
+
+// Original photo modal function (preserved as fallback)
+window.showAttendancePhotoModalOriginal = function(id_empleado, nombre_empleado) {
     empleadoSeleccionado = id_empleado;
     document.getElementById('attendancePhotoModal').classList.add('show');
     const video = document.getElementById('video');
