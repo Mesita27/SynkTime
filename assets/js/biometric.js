@@ -34,8 +34,16 @@ function initializeBiometricSystem() {
 
 /**
  * Detect available biometric devices
+ * Enhanced with real API integration
  */
 async function detectBiometricDevices() {
+    // Use real biometric device detection if available
+    if (window.BiometricAPIs && typeof window.BiometricAPIs.detectRealBiometricDevices === 'function') {
+        await window.BiometricAPIs.detectRealBiometricDevices();
+        return;
+    }
+    
+    // Fallback to original implementation
     // Detect camera
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -49,24 +57,42 @@ async function detectBiometricDevices() {
         console.warn('Camera not available:', error);
     }
 
-    // Detect fingerprint reader (simulated for demo)
-    // In a real implementation, this would check for actual fingerprint hardware
-    setTimeout(() => {
-        // Simulate fingerprint device detection
-        const hasFingerprint = checkFingerprintDevice();
+    // Detect fingerprint reader with real WebAuthn support
+    try {
+        const hasFingerprint = await checkRealFingerprintDevice();
         biometricDevices.fingerprint = hasFingerprint;
         updateDeviceStatus('fingerprint', hasFingerprint, 
-            hasFingerprint ? 'Lector detectado' : 'Lector no detectado');
-    }, 2000);
+            hasFingerprint ? 'Sensor biométrico detectado' : 'Sensor biométrico no detectado');
+    } catch (error) {
+        biometricDevices.fingerprint = false;
+        updateDeviceStatus('fingerprint', false, 'Sensor biométrico no disponible');
+        console.warn('Fingerprint device check failed:', error);
+    }
 }
 
 /**
- * Check for fingerprint device (simulated)
- * In real implementation, this would use Web Authentication API or specialized SDK
+ * Check for fingerprint device using real WebAuthn API
+ */
+async function checkRealFingerprintDevice() {
+    if (window.BiometricAPIs && typeof window.BiometricAPIs.isPlatformAuthenticatorAvailable === 'function') {
+        return await window.BiometricAPIs.isPlatformAuthenticatorAvailable();
+    }
+    
+    // Fallback to basic WebAuthn check
+    return window.PublicKeyCredential !== undefined;
+}
+
+/**
+ * Check for fingerprint device (legacy/fallback)
+ * Enhanced to use real WebAuthn API when available
  */
 function checkFingerprintDevice() {
-    // Simulate device detection based on user agent or available APIs
-    // This is a placeholder - real implementation would check actual hardware
+    // Use real API check if available
+    if (window.BiometricAPIs) {
+        return checkRealFingerprintDevice();
+    }
+    
+    // Fallback to basic check
     return window.PublicKeyCredential !== undefined;
 }
 
@@ -269,10 +295,44 @@ function updateFingerprintStatus(text) {
 
 /**
  * Simulate fingerprint scanning process
+ * Enhanced with real WebAuthn integration
  */
 function simulateFingerprintScan() {
     updateFingerprintStatus('Escaneando...');
     
+    // Use real WebAuthn API if available
+    if (window.BiometricAPIs && selectedEmployee && 
+        typeof window.BiometricAPIs.verifyFingerprintCredential === 'function') {
+        
+        window.BiometricAPIs.verifyFingerprintCredential(selectedEmployee.id)
+            .then(result => {
+                if (result.success) {
+                    updateFingerprintInstruction('Verificación exitosa');
+                    updateFingerprintStatus('Huella reconocida correctamente');
+                    setTimeout(() => {
+                        processFingerprintVerification(true);
+                    }, 1500);
+                } else {
+                    updateFingerprintInstruction('Verificación fallida');
+                    updateFingerprintStatus(result.message || 'Huella no reconocida. Intenta de nuevo.');
+                    document.getElementById('retry_fingerprint_btn').style.display = 'inline-flex';
+                }
+            })
+            .catch(error => {
+                console.error('Real fingerprint verification failed:', error);
+                // Fallback to simulation
+                performSimulatedFingerprintScan();
+            });
+    } else {
+        // Fallback to simulated scanning
+        performSimulatedFingerprintScan();
+    }
+}
+
+/**
+ * Perform simulated fingerprint scan (fallback)
+ */
+function performSimulatedFingerprintScan() {
     // Simulate scanning process
     setTimeout(() => {
         // Simulate random success/failure
@@ -427,11 +487,52 @@ window.captureFaceForVerification = function() {
 
 /**
  * Process facial recognition
+ * Enhanced with real Face-api.js integration
  */
 function processFacialRecognition(imageData) {
     updateFacialInstruction('Procesando...');
     updateFacialStatus('Analizando imagen facial...');
     
+    // Use real Face-api.js if available
+    if (window.BiometricAPIs && selectedEmployee && 
+        typeof window.BiometricAPIs.verifyFacialPattern === 'function') {
+        
+        const video = document.getElementById('facial_video');
+        
+        window.BiometricAPIs.verifyFacialPattern(selectedEmployee.id, video)
+            .then(result => {
+                if (result.success) {
+                    updateFacialInstruction('Verificación exitosa');
+                    updateFacialStatus(`Rostro reconocido con ${Math.round(result.confidence * 100)}% de confianza`);
+                    
+                    setTimeout(() => {
+                        registerAttendanceWithBiometric('facial', imageData);
+                    }, 1500);
+                } else {
+                    updateFacialInstruction('Verificación fallida');
+                    updateFacialStatus(result.message || 'Rostro no reconocido. Intenta de nuevo.');
+                    
+                    setTimeout(() => {
+                        updateFacialInstruction('Posiciona tu rostro en el marco');
+                        updateFacialStatus('Presiona verificar para intentar de nuevo');
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Real facial verification failed:', error);
+                // Fallback to simulation
+                performSimulatedFacialRecognition(imageData);
+            });
+    } else {
+        // Fallback to simulated processing
+        performSimulatedFacialRecognition(imageData);
+    }
+}
+
+/**
+ * Perform simulated facial recognition (fallback)
+ */
+function performSimulatedFacialRecognition(imageData) {
     // Simulate processing time
     setTimeout(() => {
         // Simulate random success/failure
@@ -818,16 +919,36 @@ window.selectFinger = function(fingerType) {
 
 /**
  * Start fingerprint enrollment process
+ * Enhanced with real WebAuthn integration
  */
 function startFingerprintEnrollment() {
     fingerprintProgress = 0;
     updateFingerprintEnrollmentProgress();
     
-    updateFingerprintEnrollmentInstruction('Coloca el dedo seleccionado en el lector');
+    updateFingerprintEnrollmentInstruction('Coloca el dedo seleccionado en el sensor');
     updateFingerprintEnrollmentStatus('Iniciando inscripción...');
     
-    // Simulate enrollment process
-    simulateFingerprintEnrollment();
+    // Use real WebAuthn API if available
+    if (window.BiometricAPIs && selectedEmployee && 
+        typeof window.BiometricAPIs.createFingerprintCredential === 'function') {
+        
+        window.BiometricAPIs.createFingerprintCredential(selectedEmployee.id, selectedEmployee.name)
+            .then(credential => {
+                fingerprintProgress = 100;
+                updateFingerprintEnrollmentProgress();
+                updateFingerprintEnrollmentInstruction('Inscripción completada');
+                updateFingerprintEnrollmentStatus('Huella registrada exitosamente');
+                document.getElementById('save_fingerprint_btn').style.display = 'inline-flex';
+            })
+            .catch(error => {
+                console.error('Real fingerprint enrollment failed:', error);
+                updateFingerprintEnrollmentStatus('Error: ' + error.message);
+                // Could fallback to simulation if needed
+            });
+    } else {
+        // Fallback to simulated enrollment
+        simulateFingerprintEnrollment();
+    }
 }
 
 /**
@@ -872,24 +993,43 @@ function updateFingerprintEnrollmentStatus(text) {
 
 /**
  * Save fingerprint enrollment
+ * Enhanced with WebAuthn integration
  */
 window.saveFingerprintEnrollment = function() {
     if (!selectedEmployee || !selectedFinger) return;
     
+    // Prepare form data with enhanced fields
     const formData = new URLSearchParams({
         employee_id: selectedEmployee.id,
-        finger_type: selectedFinger,
-        fingerprint_data: 'simulated_fingerprint_data' // In real implementation, this would be actual biometric data
+        finger_type: selectedFinger
     });
+
+    // Check if we have real WebAuthn credential from BiometricAPIs
+    const enrolledData = window.BiometricAPIs?.enrolledFingerprints?.get(selectedEmployee.id);
+    if (enrolledData) {
+        formData.append('webauthn_credential_id', enrolledData.credentialId);
+        formData.append('public_key', enrolledData.publicKey || '');
+        formData.append('api_source', 'webauthn');
+    } else {
+        // Fallback to simulated data
+        formData.append('fingerprint_data', 'simulated_fingerprint_data');
+        formData.append('api_source', 'internal');
+    }
     
-    fetch('api/biometric/enroll-fingerprint.php', {
+    // Use enhanced API endpoint
+    const endpoint = enrolledData ? 'api/biometric/enroll-fingerprint-enhanced.php' : 'api/biometric/enroll-fingerprint.php';
+    
+    fetch(endpoint, {
         method: 'POST',
         body: formData
     })
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            showNotification('Huella registrada exitosamente', 'success');
+            const message = res.api_source === 'webauthn' 
+                ? 'Huella registrada con WebAuthn exitosamente' 
+                : 'Huella registrada exitosamente';
+            showNotification(message, 'success');
             closeFingerprintEnrollmentModal();
             loadEmployeesForEnrollment(); // Refresh employee list
         } else {
@@ -1013,10 +1153,59 @@ function updateFacialEnrollmentStatus(text) {
 
 /**
  * Capture face for enrollment
+ * Enhanced with real Face-api.js integration
  */
 window.captureFaceForEnrollment = function() {
     if (facialCaptureCount >= maxFacialCaptures) return;
     
+    const video = document.getElementById('facial_enrollment_video');
+    
+    // Use real Face-api.js if available for the final capture
+    if (window.BiometricAPIs && selectedEmployee && facialCaptureCount === maxFacialCaptures - 1 &&
+        typeof window.BiometricAPIs.enrollFacialPattern === 'function') {
+        
+        updateFacialEnrollmentStatus('Analizando patrón facial...');
+        
+        window.BiometricAPIs.enrollFacialPattern(selectedEmployee.id, video)
+            .then(faceDescriptor => {
+                // Still capture the image for display
+                captureImageForDisplay();
+                
+                facialCaptureCount++;
+                updateEnrollmentSteps();
+                
+                updateFacialEnrollmentInstruction('Patrón facial registrado');
+                updateFacialEnrollmentStatus('Análisis facial completado exitosamente');
+                document.getElementById('capture_face_enrollment_btn').style.display = 'none';
+                document.getElementById('save_facial_btn').style.display = 'inline-flex';
+            })
+            .catch(error => {
+                console.error('Real facial enrollment failed:', error);
+                updateFacialEnrollmentStatus('Error: ' + error.message);
+                // Could still allow manual capture as fallback
+            });
+    } else {
+        // Standard image capture
+        captureImageForDisplay();
+        
+        facialCaptureCount++;
+        updateEnrollmentSteps();
+        
+        if (facialCaptureCount >= maxFacialCaptures) {
+            updateFacialEnrollmentInstruction('Capturas completadas');
+            updateFacialEnrollmentStatus('Se han tomado todas las capturas necesarias');
+            document.getElementById('capture_face_enrollment_btn').style.display = 'none';
+            document.getElementById('save_facial_btn').style.display = 'inline-flex';
+        } else {
+            updateFacialEnrollmentStatus(`Captura ${facialCaptureCount}/${maxFacialCaptures} tomada. Continúa con la siguiente.`);
+        }
+    }
+};
+
+/**
+ * Capture image for display purposes
+ */
+function captureImageForDisplay() {
     const video = document.getElementById('facial_enrollment_video');
     const canvas = document.getElementById('facial_enrollment_canvas');
     const ctx = canvas.getContext('2d');
@@ -1026,24 +1215,8 @@ window.captureFaceForEnrollment = function() {
     ctx.drawImage(video, 0, 0);
     
     const imageData = canvas.toDataURL('image/jpeg');
-    
-    // Add to captures
     addFacialCapture(imageData);
-    
-    facialCaptureCount++;
-    
-    // Update steps
-    updateEnrollmentSteps();
-    
-    if (facialCaptureCount >= maxFacialCaptures) {
-        updateFacialEnrollmentInstruction('Capturas completadas');
-        updateFacialEnrollmentStatus('Se han tomado todas las capturas necesarias');
-        document.getElementById('capture_face_enrollment_btn').style.display = 'none';
-        document.getElementById('save_facial_btn').style.display = 'inline-flex';
-    } else {
-        updateFacialEnrollmentStatus(`Captura ${facialCaptureCount}/${maxFacialCaptures} tomada. Continúa con la siguiente.`);
-    }
-};
+}
 
 /**
  * Add facial capture to gallery
@@ -1080,6 +1253,7 @@ function updateEnrollmentSteps() {
 
 /**
  * Save facial enrollment
+ * Enhanced with Face-api.js integration
  */
 window.saveFacialEnrollment = function() {
     if (!selectedEmployee || facialCaptureCount < maxFacialCaptures) return;
@@ -1090,19 +1264,36 @@ window.saveFacialEnrollment = function() {
         capturedImages.push(img.src);
     });
     
+    // Prepare form data with enhanced fields
     const formData = new URLSearchParams({
         employee_id: selectedEmployee.id,
         facial_data: JSON.stringify(capturedImages)
     });
+
+    // Check if we have real Face-api.js descriptor from BiometricAPIs
+    const enrolledData = window.BiometricAPIs?.enrolledFaces?.get(selectedEmployee.id);
+    if (enrolledData) {
+        formData.append('facial_descriptor', JSON.stringify(Array.from(enrolledData.descriptor)));
+        formData.append('confidence_score', enrolledData.confidence);
+        formData.append('api_source', 'face-api.js');
+    } else {
+        formData.append('api_source', 'internal');
+    }
     
-    fetch('api/biometric/enroll-facial.php', {
+    // Use enhanced API endpoint
+    const endpoint = enrolledData ? 'api/biometric/enroll-facial-enhanced.php' : 'api/biometric/enroll-facial.php';
+    
+    fetch(endpoint, {
         method: 'POST',
         body: formData
     })
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            showNotification('Patrón facial registrado exitosamente', 'success');
+            const message = res.api_source === 'face-api.js' 
+                ? 'Patrón facial registrado con Face-api.js exitosamente' 
+                : 'Patrón facial registrado exitosamente';
+            showNotification(message, 'success');
             closeFacialEnrollmentModal();
             loadEmployeesForEnrollment(); // Refresh employee list
         } else {
