@@ -1,26 +1,24 @@
 <?php
 require_once 'config/database.php';
 require_once 'dashboard-controller.php';
+require_once 'auth/session.php';
 
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+// Verificar autenticación y permisos para dashboard
+requireModuleAccess('dashboard');
 
-$usuarioInfo = null;
-$empresaId = 1;
+// La sesión ya está iniciada por requireModuleAccess()
+$usuarioInfo = getCurrentUser(); // Usar la función de sesión existente
+$empresaId = $usuarioInfo ? $usuarioInfo['id_empresa'] : 1;
 
-if (isset($_SESSION['username'])) {
-    $usuarioInfo = getUsuarioInfo($_SESSION['username']);
-    if ($usuarioInfo) {
-        $empresaId = $usuarioInfo['ID_EMPRESA'];
-        $_SESSION['id_empresa'] = $empresaId;
-        $_SESSION['user_id'] = $usuarioInfo['ID_USUARIO'];
-        $_SESSION['nombre_completo'] = $usuarioInfo['NOMBRE_COMPLETO'];
-        $_SESSION['rol'] = $usuarioInfo['ROL'];
-        $_SESSION['empresa_nombre'] = $usuarioInfo['EMPRESA_NOMBRE'];
+// Solo obtener info adicional si es necesario
+if (!$usuarioInfo || !$empresaId) {
+    // Fallback si hay problemas con la sesión
+    if (isset($_SESSION['username'])) {
+        $usuarioInfoDB = getUsuarioInfo($_SESSION['username']);
+        if ($usuarioInfoDB) {
+            $empresaId = $usuarioInfoDB['ID_EMPRESA'];
+        }
     }
-} else {
-    $empresaId = isset($_SESSION['id_empresa']) ? $_SESSION['id_empresa'] : 1;
 }
 
 $fechaDashboard = date('Y-m-d');

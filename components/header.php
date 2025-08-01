@@ -1,27 +1,22 @@
 <?php
-// Iniciar sesión si no está iniciada
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+// La sesión ya debería estar iniciada por el sistema de autenticación
+// Obtener información del usuario usando las funciones de sesión
+require_once __DIR__ . '/../auth/session.php';
 
-// Obtener información del usuario si está logueado
 $nombreUsuario = 'Usuario';
 $nombreCompleto = 'Usuario';
 
-if (isset($_SESSION['username'])) {
-    $nombreUsuario = $_SESSION['username'];
-    
-    // Si tenemos el nombre completo en la sesión, usarlo
-    if (isset($_SESSION['nombre_completo'])) {
-        $nombreCompleto = $_SESSION['nombre_completo'];
-    } else {
-        // Si no, obtenerlo de la base de datos
-        require_once 'dashboard-controller.php';
-        $userInfo = getUsuarioInfo($_SESSION['username']);
-        if ($userInfo) {
-            $nombreCompleto = $userInfo['NOMBRE_COMPLETO'];
-            $_SESSION['nombre_completo'] = $nombreCompleto; // Guardar en sesión para próximas consultas
-        }
+if (isAuthenticated()) {
+    $currentUser = getCurrentUser();
+    if ($currentUser) {
+        $nombreUsuario = $currentUser['username'];
+        $nombreCompleto = $currentUser['nombre_completo'];
+    }
+} else {
+    // Fallback para compatibilidad
+    if (isset($_SESSION['username'])) {
+        $nombreUsuario = $_SESSION['username'];
+        $nombreCompleto = $_SESSION['nombre_completo'] ?? $nombreUsuario;
     }
 }
 

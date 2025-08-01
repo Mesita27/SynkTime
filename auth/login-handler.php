@@ -122,7 +122,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Preparar respuesta exitosa
                         $response['success'] = true;
                         $response['message'] = 'Login exitoso';
-                        $response['redirect'] = 'dashboard.php';
+                        
+                        // Redirigir según el rol del usuario
+                        if ($user['ROL'] === 'ASISTENCIA') {
+                            $response['redirect'] = 'attendance.php';
+                        } else {
+                            $response['redirect'] = 'dashboard.php';
+                        }
+                        
                         $response['user'] = [
                             'username' => $user['USERNAME'],
                             'nombre_completo' => $user['NOMBRE_COMPLETO'],

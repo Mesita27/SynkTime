@@ -1,6 +1,6 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+requireModuleAccess('horarios'); // Verificar permisos para módulo de horarios
 ?>
 <!DOCTYPE html>
 <html lang="es">

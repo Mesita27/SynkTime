@@ -138,6 +138,8 @@ function isSessionExpired($timeout = 7200) { // 2 horas por defecto
  * Requiere autenticación - redirige al login si no está autenticado
  */
 function requireAuth() {
+    initSession(); // Asegurar que la sesión está iniciada
+    
     if (!isAuthenticated() || isSessionExpired()) {
         // Limpiar sesión expirada
         if (isSessionExpired()) {
@@ -187,5 +189,84 @@ function hasRole($role) {
  */
 function isAdmin() {
     return hasRole('ADMINISTRADOR');
+}
+
+/**
+ * Verifica si el usuario tiene permisos completos (no es solo ASISTENCIA)
+ */
+function hasFullAccess() {
+    if (!isAuthenticated()) {
+        return false;
+    }
+    
+    $rol = $_SESSION['rol'] ?? '';
+    
+    // GERENTE, ADMIN, DUEÑO tienen acceso completo
+    return in_array($rol, ['GERENTE', 'ADMINISTRADOR', 'ADMIN', 'DUEÑO', 'DUENO']);
+}
+function hasModuleAccess($module) {
+    if (!isAuthenticated()) {
+        return false;
+    }
+    
+    $userRole = $_SESSION['rol'] ?? '';
+    
+    // GERENTE, ADMIN, DUEÑO tienen acceso completo a todos los módulos
+    if (in_array($userRole, ['GERENTE', 'ADMINISTRADOR', 'ADMIN', 'DUEÑO', 'DUENO'])) {
+        return true;
+    }
+    
+    // Rol ASISTENCIA solo tiene acceso limitado
+    if ($userRole === 'ASISTENCIA') {
+        // Módulos permitidos para ASISTENCIA
+        $allowedModules = ['asistencia', 'attendance'];
+        return in_array($module, $allowedModules);
+    }
+    
+    // Por defecto, denegar acceso para roles no definidos
+    return false;
+}
+
+/**
+ * Obtiene condiciones adicionales para filtrar datos según el rol del usuario
+ * Solo usuarios con rol ASISTENCIA tienen restricciones
+ */
+function getRoleBasedWhereConditions($empresaId) {
+    if (!isAuthenticated()) {
+        return ['conditions' => [], 'params' => []];
+    }
+    
+    $rol = $_SESSION['rol'] ?? '';
+    
+    // Si no es ASISTENCIA, no hay restricciones adicionales
+    if ($rol !== 'ASISTENCIA') {
+        return ['conditions' => [], 'params' => []];
+    }
+    
+    // Para ASISTENCIA: restringir a empleados de la misma empresa
+    // En el futuro se puede refinar esta lógica para ser más específica
+    return [
+        'conditions' => ['ID_EMPRESA = :empresa_id'],
+        'params' => ['empresa_id' => $empresaId]
+    ];
+}
+
+/**
+ * Requiere acceso específico a un módulo - redirige si no tiene permisos
+ */
+function requireModuleAccess($module) {
+    requireAuth(); // Primero verificar autenticación
+    
+    if (!hasModuleAccess($module)) {
+        // Si es rol ASISTENCIA y trata de acceder a otro módulo, redirigir a asistencia
+        if (hasRole('ASISTENCIA')) {
+            header('Location: attendance.php');
+            exit;
+        } else {
+            // Para otros casos, redirigir al dashboard
+            header('Location: dashboard.php');
+            exit;
+        }
+    }
 }
 ?>
