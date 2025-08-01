@@ -75,7 +75,7 @@ function configurarEventosModales() {
     });
 }
 
-// Función para mostrar modal de asistencias usando api/attendance/list.php
+// Función para mostrar modal de asistencias usando api/get-attendance-details.php
 function mostrarModalAsistencias(tipo) {
     // Obtener elementos necesarios
     const modal = document.getElementById(`${tipo}-modal`);
@@ -120,17 +120,17 @@ function mostrarModalAsistencias(tipo) {
         </tr>
     `;
     
-    // Construir la URL para la API de attendance/list.php
-    let apiUrl = `api/attendance/list.php?limit=1000&page=1`;
+    // Construir la URL para la API de get-attendance-details.php
+    let apiUrl = `api/get-attendance-details.php?tipo=${tipo}&fecha=${fecha}`;
     if (establecimientoId) {
-        apiUrl += `&establecimiento=${establecimientoId}`;
+        apiUrl += `&establecimiento_id=${establecimientoId}`;
     } else if (sedeId) {
-        apiUrl += `&sede=${sedeId}`;
+        apiUrl += `&sede_id=${sedeId}`;
     }
     
     console.log('URL de la API:', apiUrl);
     
-    // Cargar datos desde la API de attendance list
+    // Cargar datos desde la API de get-attendance-details
     fetch(apiUrl)
         .then(response => {
             if (!response.ok) {
@@ -141,81 +141,6 @@ function mostrarModalAsistencias(tipo) {
         .then(data => {
             console.log('Datos recibidos:', data);
             
-            if (!data.success) {
-                throw new Error(data.message || 'Error desconocido');
-            }
-            
-            // Filtrar solo registros de ENTRADA del día seleccionado
-            const fechaSeleccionada = fecha;
-            const registrosEntrada = data.data.filter(registro => 
-                registro.tipo === 'ENTRADA' && registro.fecha === fechaSeleccionada
-            );
-            
-            // Filtrar por tipo de asistencia
-            let datosFiltrados = [];
-            
-            if (tipo === 'temprano') {
-                // Llegadas tempranas: sin tardanza y antes de la hora de entrada
-                datosFiltrados = registrosEntrada.filter(registro => 
-                    registro.tardanza === 'N' && 
-                    (registro.HORA_ENTRADA && registro.hora < registro.HORA_ENTRADA)
-                );
-            } else if (tipo === 'aTiempo') {
-                // Llegadas a tiempo: sin tardanza y en horario o después
-                datosFiltrados = registrosEntrada.filter(registro => 
-                    registro.tardanza === 'N' && 
-                    (!registro.HORA_ENTRADA || registro.hora >= registro.HORA_ENTRADA)
-                );
-            } else if (tipo === 'tarde') {
-                // Llegadas tarde: con tardanza
-                datosFiltrados = registrosEntrada.filter(registro => 
-                    registro.tardanza === 'S'
-                );
-            } else if (tipo === 'faltas') {
-                // Para faltas, usamos la API original ya que requiere lógica más compleja
-                cargarFaltasDesdeAPIOriginal(tipo, fecha, sedeId, establecimientoId);
-                return;
-            }
-            
-            // Guardar datos para exportación
-            attendanceData[tipo] = datosFiltrados;
-            
-            // Mostrar datos en la tabla
-            mostrarDatosEnTabla(tipo, datosFiltrados);
-        })
-        .catch(error => {
-            console.error(`Error al cargar datos de ${tipo}:`, error);
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Error al cargar datos: ${error.message}
-                    </td>
-                </tr>
-            `;
-        });
-}
-
-// Función específica para cargar faltas desde la API original
-function cargarFaltasDesdeAPIOriginal(tipo, fecha, sedeId, establecimientoId) {
-    const tableBody = document.getElementById(`${tipo}-table-body`);
-    
-    // Construir la URL para la API original para faltas
-    let apiUrl = `api/get-attendance-details.php?tipo=${tipo}&fecha=${fecha}`;
-    if (establecimientoId) {
-        apiUrl += `&establecimiento_id=${establecimientoId}`;
-    } else if (sedeId) {
-        apiUrl += `&sede_id=${sedeId}`;
-    }
-    
-    fetch(apiUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(data => {
             if (!data.success) {
                 throw new Error(data.error || 'Error desconocido');
             }
@@ -261,7 +186,7 @@ function mostrarDatosEnTabla(tipo, datos) {
     
     // Mostrar datos según el tipo
     if (tipo === 'faltas') {
-        // Tabla para faltas (usa estructura de API original)
+        // Tabla para faltas (usa estructura de API get-attendance-details.php)
         datos.forEach(item => {
             tableBody.innerHTML += `
                 <tr>
@@ -274,47 +199,42 @@ function mostrarDatosEnTabla(tipo, datos) {
             `;
         });
     } else {
-        // Tabla para asistencias (temprano, a tiempo, tarde) - usa estructura de attendance/list.php
+        // Tabla para asistencias (temprano, a tiempo, tarde) - usa estructura de get-attendance-details.php
         datos.forEach(item => {
-            // Calcular diferencia de tiempo si existe información de horario
+            // Formatear diferencia de tiempo
             let diferencia = '';
-            let claseBadge = tipo;
             
-            if (item.HORA_ENTRADA && item.hora) {
-                const horaEntrada = new Date(`2000-01-01 ${item.HORA_ENTRADA}`);
-                const horaReal = new Date(`2000-01-01 ${item.hora}`);
-                const diferenciaMs = horaEntrada.getTime() - horaReal.getTime();
-                const minutosDiferencia = Math.round(diferenciaMs / (1000 * 60));
-                
+            if (item.MINUTOS_DIFERENCIA !== undefined && item.MINUTOS_DIFERENCIA !== null) {
+                const minutos = Math.abs(parseFloat(item.MINUTOS_DIFERENCIA));
                 if (tipo === 'temprano') {
-                    diferencia = `${Math.abs(minutosDiferencia)} min antes`;
+                    diferencia = `${minutos.toFixed(0)} min antes`;
                 } else if (tipo === 'aTiempo') {
-                    if (minutosDiferencia > 0) {
-                        diferencia = `${Math.abs(minutosDiferencia)} min antes`;
+                    if (item.MINUTOS_DIFERENCIA > 0) {
+                        diferencia = `${minutos.toFixed(0)} min antes`;
                     } else {
                         diferencia = `A tiempo`;
                     }
-                } else { // tarde
-                    diferencia = `${Math.abs(minutosDiferencia)} min tarde`;
+                } else if (tipo === 'tarde') {
+                    diferencia = `${minutos.toFixed(0)} min tarde`;
                 }
             } else {
-                // Si no hay información de horario, usar tardanza
+                // Si no hay información de diferencia, usar texto genérico
                 if (tipo === 'temprano') {
                     diferencia = 'Temprano';
                 } else if (tipo === 'aTiempo') {
                     diferencia = 'A tiempo';
-                } else {
+                } else if (tipo === 'tarde') {
                     diferencia = 'Tarde';
                 }
             }
             
             tableBody.innerHTML += `
                 <tr>
-                    <td>${item.codigo_empleado || '-'}</td>
-                    <td>${item.nombre_empleado || '-'}</td>
-                    <td>${item.establecimiento || '-'}</td>
-                    <td>${formatearHora(item.hora) || '--:--'}</td>
-                    <td><span class="status-badge ${claseBadge}">${diferencia}</span></td>
+                    <td>${item.CODIGO || '-'}</td>
+                    <td>${(item.NOMBRE || '') + ' ' + (item.APELLIDO || '')}</td>
+                    <td>${item.ESTABLECIMIENTO || '-'}</td>
+                    <td>${formatearHora(item.ENTRADA_HORA) || '--:--'}</td>
+                    <td><span class="status-badge ${tipo}">${diferencia}</span></td>
                 </tr>
             `;
         });
@@ -385,19 +305,29 @@ function realizarExportacion(tipo) {
         
         // Preparar los datos según el tipo
         datos.forEach(item => {
-            let minutosDiferencia = item.MINUTOS_DIFERENCIA || 0;
-            let diferencia;
+            let diferencia = '';
             
-            if (tipo === 'temprano') {
-                diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
-            } else if (tipo === 'aTiempo') {
-                if (minutosDiferencia > 0) {
-                    diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min antes`;
-                } else {
-                    diferencia = `A tiempo`;
+            if (item.MINUTOS_DIFERENCIA !== undefined && item.MINUTOS_DIFERENCIA !== null) {
+                const minutos = Math.abs(parseFloat(item.MINUTOS_DIFERENCIA));
+                if (tipo === 'temprano') {
+                    diferencia = `${minutos.toFixed(0)} min antes`;
+                } else if (tipo === 'aTiempo') {
+                    if (item.MINUTOS_DIFERENCIA > 0) {
+                        diferencia = `${minutos.toFixed(0)} min antes`;
+                    } else {
+                        diferencia = `A tiempo`;
+                    }
+                } else if (tipo === 'tarde') {
+                    diferencia = `${minutos.toFixed(0)} min tarde`;
                 }
-            } else { // tarde
-                diferencia = `${Math.abs(minutosDiferencia).toFixed(0)} min tarde`;
+            } else {
+                if (tipo === 'temprano') {
+                    diferencia = 'Temprano';
+                } else if (tipo === 'aTiempo') {
+                    diferencia = 'A tiempo';
+                } else if (tipo === 'tarde') {
+                    diferencia = 'Tarde';
+                }
             }
             
             filasData.push([

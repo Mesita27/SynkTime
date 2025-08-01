@@ -96,28 +96,28 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
 
                     <!-- Stats Grid -->
                     <div class="stats-grid">
-                        <div class="stat-card">
+                        <div class="stat-card clickable" id="stat-card-temprano" data-type="temprano" title="Click para ver detalles">
                             <div class="stat-icon info"><i class="fas fa-user-clock"></i></div>
                             <div class="stat-info">
                                 <h3>Llegadas Tempranas</h3>
                                 <div class="stat-value" id="llegadasTemprano"><?php echo $estadisticas['llegadas_temprano'] ?? 0; ?></div>
                             </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-card clickable" id="stat-card-atiempo" data-type="aTiempo" title="Click para ver detalles">
                             <div class="stat-icon success"><i class="fas fa-user-check"></i></div>
                             <div class="stat-info">
                                 <h3>A Tiempo</h3>
                                 <div class="stat-value" id="llegadasTiempo"><?php echo $estadisticas['llegadas_tiempo'] ?? 0; ?></div>
                             </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-card clickable" id="stat-card-tarde" data-type="tarde" title="Click para ver detalles">
                             <div class="stat-icon warning"><i class="fas fa-user-clock"></i></div>
                             <div class="stat-info">
                                 <h3>Llegadas Tarde</h3>
                                 <div class="stat-value" id="llegadasTarde"><?php echo $estadisticas['llegadas_tarde'] ?? 0; ?></div>
                             </div>
                         </div>
-                        <div class="stat-card">
+                        <div class="stat-card clickable" id="stat-card-faltas" data-type="faltas" title="Click para ver detalles">
                             <div class="stat-icon danger"><i class="fas fa-user-times"></i></div>
                             <div class="stat-info">
                                 <h3>Faltas</h3>
@@ -250,6 +250,16 @@ $actividadReciente = $establecimientoDefaultId ? getActividadRecienteEstablecimi
     document.addEventListener('DOMContentLoaded', function() {
         const dashboard = new Dashboard();
         dashboard.initializeChartsWithData(initialData);
+        
+        // Add click handlers for stat cards
+        document.querySelectorAll('.stat-card.clickable').forEach(card => {
+            card.addEventListener('click', function() {
+                const tipo = this.getAttribute('data-type');
+                if (tipo && window.mostrarModalAsistencias) {
+                    window.mostrarModalAsistencias(tipo);
+                }
+            });
+        });
         
         const selectSede = document.getElementById('selectSede');
         const selectEstablecimiento = document.getElementById('selectEstablecimiento');
