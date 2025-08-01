@@ -1,11 +1,15 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
-session_start();
+require_once __DIR__ . '/../../auth/session.php';
+
+// Verificar autenticación
+requireAuth();
 
 header('Content-Type: application/json');
 
 try {
     $empresaId = $_SESSION['id_empresa'] ?? null;
+    $userRole = $_SESSION['rol'] ?? '';
     
     if (!$empresaId) {
         echo json_encode(['success' => false, 'message' => 'Sesión inválida']);
@@ -20,9 +24,15 @@ try {
     $limit = max(10, min(50, intval($_GET['limit'] ?? 10)));
     $offset = ($page - 1) * $limit;
 
-    // Obtenemos fecha actual y hace 20 horas
-    $fecha_actual = date('Y-m-d H:i:s');
-    $fecha_20_horas_atras = date('Y-m-d H:i:s', strtotime('-20 hours'));
+    // Para rol ASISTENCIA, restringir a solo día actual
+    if ($userRole === 'ASISTENCIA') {
+        $fecha_inicio_dia = date('Y-m-d 00:00:00');
+        $fecha_fin_dia = date('Y-m-d 23:59:59');
+    } else {
+        // Para otros roles, mantener las últimas 20 horas como estaba
+        $fecha_actual = date('Y-m-d H:i:s');
+        $fecha_20_horas_atras = date('Y-m-d H:i:s', strtotime('-20 hours'));
+    }
 
     // Parámetros de filtro
     $filtros = [
@@ -33,13 +43,20 @@ try {
 
     // Construcción de la consulta base
     $where = ["s.ID_EMPRESA = :empresa_id"];
-    $params = [
-        ':empresa_id' => $empresaId,
-        ':fecha_20_horas_atras' => $fecha_20_horas_atras
-    ];
+    $params = [':empresa_id' => $empresaId];
 
-    // Filtrar por últimas 20 horas (en lugar de solo fecha actual)
-    $where[] = "CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_20_horas_atras";
+    // Aplicar filtro de fecha según rol
+    if ($userRole === 'ASISTENCIA') {
+        // Rol ASISTENCIA solo ve datos del día actual
+        $where[] = "CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_inicio_dia";
+        $where[] = "CONCAT(a.FECHA, ' ', a.HORA) <= :fecha_fin_dia";
+        $params[':fecha_inicio_dia'] = $fecha_inicio_dia;
+        $params[':fecha_fin_dia'] = $fecha_fin_dia;
+    } else {
+        // Otros roles ven las últimas 20 horas
+        $where[] = "CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_20_horas_atras";
+        $params[':fecha_20_horas_atras'] = $fecha_20_horas_atras;
+    }
 
     // Aplicar filtros adicionales
     if ($filtros['codigo']) {

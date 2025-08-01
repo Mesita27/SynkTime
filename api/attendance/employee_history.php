@@ -6,12 +6,19 @@ require_once __DIR__ . '/../../config/database.php';
 header('Content-Type: application/json');
 
 $empresaId = $_SESSION['id_empresa'];
+$userRole = $_SESSION['rol'] ?? '';
 $id_empleado = $_GET['id_empleado'] ?? '';
 $desde = $_GET['desde'] ?? null;
 $hasta = $_GET['hasta'] ?? null;
 
 if (!$id_empleado) {
     echo json_encode(['success'=>false,'data'=>[]]); exit;
+}
+
+// Para rol ASISTENCIA, restringir a solo día actual
+if ($userRole === 'ASISTENCIA') {
+    $desde = date('Y-m-d');
+    $hasta = date('Y-m-d');
 }
 
 $sql = "SELECT a.ID_ASISTENCIA, a.FECHA, a.HORA, a.TARDANZA, a.OBSERVACION

@@ -1,6 +1,6 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+requireModuleAccess('horas-trabajadas'); // Verificar permisos para módulo de horas trabajadas
 require_once 'config/database.php';
 
 // Inicializar sesión si es necesario

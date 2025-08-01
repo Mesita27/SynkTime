@@ -1,6 +1,10 @@
 <?php
 require_once 'config/database.php';
 require_once 'dashboard-controller.php';
+require_once 'auth/session.php';
+
+// Verificar autenticación y permisos para dashboard
+requireModuleAccess('dashboard');
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();

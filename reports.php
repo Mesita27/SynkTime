@@ -1,6 +1,6 @@
 <?php
 require_once 'auth/session.php';
-requireAuth();
+requireModuleAccess('reportes'); // Verificar permisos para módulo de reportes
 ?>
 <!DOCTYPE html>
 <html lang="es">

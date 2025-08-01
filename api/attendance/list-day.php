@@ -8,6 +8,8 @@ header('Content-Type: application/json');
 // Establecer zona horaria de Colombia
 date_default_timezone_set('America/Bogota');
 
+$userRole = $_SESSION['rol'] ?? '';
+
 $where = ['e.ACTIVO = "S"'];
 $params = [];
 
@@ -30,9 +32,20 @@ if ($codigo) {
     $params[':codigo'] = $codigo;
 }
 
-// Obtenemos fecha actual y hace 20 horas
-$fecha_actual = date('Y-m-d H:i:s');
-$fecha_20_horas_atras = date('Y-m-d H:i:s', strtotime('-20 hours'));
+// Aplicar filtro de fecha según rol del usuario
+if ($userRole === 'ASISTENCIA') {
+    // Para rol ASISTENCIA, solo día actual
+    $fecha_inicio_dia = date('Y-m-d 00:00:00');
+    $fecha_fin_dia = date('Y-m-d 23:59:59');
+    $fecha_filtro_inicio = $fecha_inicio_dia;
+    $fecha_filtro_fin = $fecha_fin_dia;
+} else {
+    // Para otros roles, mantener las últimas 20 horas
+    $fecha_actual = date('Y-m-d H:i:s');
+    $fecha_20_horas_atras = date('Y-m-d H:i:s', strtotime('-20 hours'));
+    $fecha_filtro_inicio = $fecha_20_horas_atras;
+    $fecha_filtro_fin = $fecha_actual;
+}
 
 // Utilizamos subconsultas para obtener la última entrada y salida para cada combinación empleado/horario/fecha
 $sql = "
@@ -66,11 +79,12 @@ FROM EMPLEADO e
 JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
 JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
 
--- Subconsulta para obtener fechas únicas de asistencia en las últimas 20 horas
+-- Subconsulta para obtener fechas únicas de asistencia según permisos de rol
 JOIN (
     SELECT DISTINCT a.ID_EMPLEADO, a.FECHA, a.ID_HORARIO
     FROM ASISTENCIA a
-    WHERE CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_20_horas_atras
+    WHERE CONCAT(a.FECHA, ' ', a.HORA) >= :fecha_filtro_inicio
+    AND CONCAT(a.FECHA, ' ', a.HORA) <= :fecha_filtro_fin
 ) AS a_fecha ON e.ID_EMPLEADO = a_fecha.ID_EMPLEADO
 
 -- Unión con HORARIO a través del ID_HORARIO en la asistencia
@@ -119,8 +133,9 @@ ORDER BY a_fecha.FECHA DESC, h.HORA_ENTRADA ASC
 
 $stmt = $conn->prepare($sql);
 
-// Agregar parámetros de filtro de fecha
-$params[':fecha_20_horas_atras'] = $fecha_20_horas_atras;
+// Agregar parámetros de filtro de fecha según rol
+$params[':fecha_filtro_inicio'] = $fecha_filtro_inicio;
+$params[':fecha_filtro_fin'] = $fecha_filtro_fin;
 
 foreach ($params as $k => $v) {
     $stmt->bindValue($k, $v);
