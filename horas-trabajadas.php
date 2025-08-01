@@ -110,10 +110,13 @@ $establecimientos = $sedeDefaultId ? getEstablecimientosByEmpresa($empresaId, $s
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label for="selectEmpleado">Empleado:</label>
-                        <select id="selectEmpleado" class="filter-select">
-                            <option value="">Todos los empleados</option>
-                        </select>
+                        <label for="btnSelectEmpleados">Empleados:</label>
+                        <button type="button" id="btnSelectEmpleados" class="btn-employee-selector">
+                            <i class="fas fa-users"></i>
+                            <span id="employeeSelectionText">Todos los empleados</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <input type="hidden" id="selectedEmployees" value="">
                     </div>
                     <div class="filter-group">
                         <label for="fechaDesde">Fecha desde:</label>
@@ -198,11 +201,12 @@ $establecimientos = $sedeDefaultId ? getEstablecimientosByEmpresa($empresaId, $s
                                 <th>Festivo</th>
                                 <th>Total</th>
                                 <th>Observaciones</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="horasTableBody">
                             <tr>
-                                <td colspan="11" class="no-data">
+                                <td colspan="12" class="no-data">
                                     <i class="fas fa-info-circle"></i> Seleccione los filtros y presione "Filtrar" para ver las horas trabajadas.
                                 </td>
                             </tr>
@@ -244,7 +248,13 @@ $establecimientos = $sedeDefaultId ? getEstablecimientosByEmpresa($empresaId, $s
     </div>
 </div>
 
+<!-- Include modals -->
+<?php include 'components/employee_selector_modal.php'; ?>
+<?php include 'components/schedule_details_modal.php'; ?>
+
 <script src="assets/js/layout.js"></script>
+<script src="assets/js/employee-selector.js"></script>
+<script src="assets/js/schedule-details.js"></script>
 <script src="assets/js/horas-trabajadas.js"></script>
 </body>
 </html>
