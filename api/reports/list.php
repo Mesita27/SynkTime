@@ -1,8 +1,15 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
-session_start();
+require_once __DIR__ . '/../../auth/authorization.php';
+requireAuth();
 
 header('Content-Type: application/json');
+
+// Verificar permisos - Solo gerentes pueden acceder a reportes
+if (!hasPermission('reports_access')) {
+    echo json_encode(['success' => false, 'message' => 'Sin permisos para acceder a reportes']);
+    exit;
+}
 
 try {
     $empresaId = $_SESSION['id_empresa'] ?? null;

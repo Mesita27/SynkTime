@@ -1,8 +1,15 @@
 <?php
 require_once __DIR__ . '/../../config/database.php';
-session_start();
+require_once __DIR__ . '/../../auth/authorization.php';
+requireAuth();
 
 header('Content-Type: application/json');
+
+// Verificar permisos - Solo gerentes pueden gestionar empleados
+if (!hasPermission('employee_management')) {
+    echo json_encode(['success' => false, 'message' => 'Sin permisos para acceder a datos de empleados']);
+    exit;
+}
 
 try {
     $empresaId = $_SESSION['id_empresa'] ?? null;

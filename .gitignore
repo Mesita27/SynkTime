@@ -1,0 +1,17 @@
+# Test files
+test-*.php
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*~
+*.tmp
