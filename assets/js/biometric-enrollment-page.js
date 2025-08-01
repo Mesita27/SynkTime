@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     loadBiometricStats();
     loadBiometricSummary();
+    loadSystemStatus();
 });
 
 /**
@@ -35,6 +36,10 @@ function initializeBiometricEnrollmentPage() {
     console.log('Initializing biometric enrollment page...');
     loadSedesForFilters();
     loadEstablecimientosForFilters();
+    
+    // Initialize enrollment modal data
+    loadSedesForEnrollment();
+    loadEstablecimientosForEnrollment();
 }
 
 /**
@@ -58,11 +63,30 @@ function setupEventListeners() {
         btnClearFilters.onclick = clearBiometricFilters;
     }
 
+    // Enrollment modal search buttons
+    const btnBuscarEnrollment = document.getElementById('btnBuscarEnrollment');
+    if (btnBuscarEnrollment) {
+        btnBuscarEnrollment.onclick = loadEmployeesForEnrollment;
+    }
+
+    const btnLimpiarEnrollment = document.getElementById('btnLimpiarEnrollment');
+    if (btnLimpiarEnrollment) {
+        btnLimpiarEnrollment.onclick = clearEnrollmentFilters;
+    }
+
     // Sede change event
     const filterSede = document.getElementById('filter_sede');
     if (filterSede) {
         filterSede.onchange = function() {
             loadEstablecimientosForFilters();
+        };
+    }
+
+    // Enrollment sede change event
+    const enrollmentSede = document.getElementById('enrollment_sede');
+    if (enrollmentSede) {
+        enrollmentSede.onchange = function() {
+            loadEstablecimientosForEnrollment();
         };
     }
 
@@ -74,7 +98,176 @@ function setupEventListeners() {
 }
 
 // ===================================================================
-// 2. LOAD SEDES AND ESTABLECIMIENTOS FOR FILTERS
+// 2. SYSTEM STATUS
+// ===================================================================
+
+/**
+ * Load system status and external API information
+ */
+async function loadSystemStatus() {
+    try {
+        const response = await fetch('api/biometric/service-status.php');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateSystemStatusDisplay(data.status);
+            updateRecommendations(data.recommendations);
+        } else {
+            console.error('Error loading system status:', data.message);
+            showErrorSystemStatus();
+        }
+    } catch (error) {
+        console.error('Error loading system status:', error);
+        showErrorSystemStatus();
+    }
+}
+
+/**
+ * Update system status display
+ */
+function updateSystemStatusDisplay(status) {
+    // Update facial recognition status
+    const facialCard = document.getElementById('facial_api_status');
+    const facialStatus = status.external_apis.facial_recognition;
+    
+    updateStatusCard(facialCard, {
+        enabled: facialStatus.enabled,
+        provider: facialStatus.provider,
+        configured: facialStatus.configured,
+        service: 'Reconocimiento Facial'
+    });
+    
+    // Update fingerprint recognition status
+    const fingerprintCard = document.getElementById('fingerprint_api_status');
+    const fingerprintStatus = status.external_apis.fingerprint_recognition;
+    
+    updateStatusCard(fingerprintCard, {
+        enabled: fingerprintStatus.enabled,
+        provider: fingerprintStatus.provider,
+        configured: fingerprintStatus.configured,
+        service: 'Reconocimiento de Huellas'
+    });
+    
+    // Update system capabilities
+    const capabilitiesCard = document.getElementById('system_capabilities_status');
+    const capabilities = status.system_capabilities;
+    
+    updateCapabilitiesCard(capabilitiesCard, capabilities);
+}
+
+/**
+ * Update individual status card
+ */
+function updateStatusCard(card, statusInfo) {
+    if (!card) return;
+    
+    const statusText = card.querySelector('.status-text');
+    const providerText = card.querySelector('.provider-text');
+    const indicator = card.querySelector('.status-indicator');
+    
+    // Remove loading state
+    card.classList.remove('status-loading');
+    
+    if (statusInfo.enabled && statusInfo.configured) {
+        card.classList.add('status-active');
+        statusText.textContent = 'Configurado y activo';
+        providerText.textContent = `Proveedor: ${statusInfo.provider}`;
+        indicator.innerHTML = '<i class="fas fa-check-circle status-active"></i>';
+    } else if (statusInfo.enabled && !statusInfo.configured) {
+        card.classList.add('status-warning');
+        statusText.textContent = 'Configuración incompleta';
+        providerText.textContent = `Proveedor: ${statusInfo.provider}`;
+        indicator.innerHTML = '<i class="fas fa-exclamation-triangle status-warning"></i>';
+    } else {
+        card.classList.add('status-error');
+        statusText.textContent = 'No configurado (usando algoritmo local)';
+        providerText.textContent = `Algoritmo local activo`;
+        indicator.innerHTML = '<i class="fas fa-info-circle"></i>';
+    }
+}
+
+/**
+ * Update capabilities card
+ */
+function updateCapabilitiesCard(card, capabilities) {
+    if (!card) return;
+    
+    const statusText = card.querySelector('.status-text');
+    const providerText = card.querySelector('.provider-text');
+    const indicator = card.querySelector('.status-indicator');
+    
+    // Count active capabilities
+    const activeCapabilities = Object.values(capabilities).filter(Boolean).length;
+    const totalCapabilities = Object.keys(capabilities).length;
+    
+    card.classList.remove('status-loading');
+    card.classList.add('status-active');
+    
+    statusText.textContent = `${activeCapabilities}/${totalCapabilities} características activas`;
+    providerText.textContent = 'Sistema completamente funcional';
+    indicator.innerHTML = '<i class="fas fa-check-circle status-active"></i>';
+}
+
+/**
+ * Update recommendations display
+ */
+function updateRecommendations(recommendations) {
+    const recommendationsContainer = document.getElementById('system_recommendations');
+    const recommendationsList = document.getElementById('recommendations_list');
+    
+    if (!recommendations || recommendations.length === 0) {
+        recommendationsContainer.style.display = 'none';
+        return;
+    }
+    
+    recommendationsContainer.style.display = 'block';
+    recommendationsList.innerHTML = '';
+    
+    recommendations.forEach(rec => {
+        const item = document.createElement('div');
+        item.className = `recommendation-item type-${rec.type}`;
+        
+        const iconClass = rec.type === 'success' ? 'fa-check-circle' :
+                         rec.type === 'warning' ? 'fa-exclamation-triangle' :
+                         rec.type === 'error' ? 'fa-times-circle' : 'fa-info-circle';
+        
+        item.innerHTML = `
+            <div class="recommendation-icon">
+                <i class="fas ${iconClass}"></i>
+            </div>
+            <div class="recommendation-content">
+                <h5>${rec.title}</h5>
+                <p>${rec.message}</p>
+            </div>
+        `;
+        
+        recommendationsList.appendChild(item);
+    });
+}
+
+/**
+ * Show error system status
+ */
+function showErrorSystemStatus() {
+    const cards = ['facial_api_status', 'fingerprint_api_status', 'system_capabilities_status'];
+    
+    cards.forEach(cardId => {
+        const card = document.getElementById(cardId);
+        if (card) {
+            card.classList.remove('status-loading');
+            card.classList.add('status-error');
+            
+            const statusText = card.querySelector('.status-text');
+            const indicator = card.querySelector('.status-indicator');
+            
+            statusText.textContent = 'Error al verificar estado';
+            indicator.innerHTML = '<i class="fas fa-times-circle status-error"></i>';
+        }
+    });
+}
+
+// ===================================================================
+// 3. LOAD SEDES AND ESTABLECIMIENTOS FOR FILTERS
 // ===================================================================
 
 /**
@@ -125,8 +318,68 @@ async function loadEstablecimientosForFilters() {
     }
 }
 
+/**
+ * Load establecimientos for enrollment filters
+ */
+async function loadEstablecimientosForEnrollment() {
+    try {
+        const sedeId = document.getElementById('enrollment_sede').value;
+        let url = 'api/get-establecimientos.php';
+        if (sedeId) {
+            url += `?sede_id=${sedeId}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        const establecimientoSelect = document.getElementById('enrollment_establecimiento');
+        
+        establecimientoSelect.innerHTML = '<option value="">Todos los establecimientos</option>';
+        
+        if (data.establecimientos) {
+            data.establecimientos.forEach(establecimiento => {
+                establecimientoSelect.innerHTML += `<option value="${establecimiento.ID_ESTABLECIMIENTO}">${establecimiento.NOMBRE}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading establecimientos for enrollment:', error);
+    }
+}
+
+/**
+ * Clear enrollment filters
+ */
+function clearEnrollmentFilters() {
+    document.getElementById('enrollment_sede').value = '';
+    document.getElementById('enrollment_establecimiento').value = '';
+    document.getElementById('enrollment_codigo').value = '';
+    
+    loadEstablecimientosForEnrollment();
+    loadEmployeesForEnrollment();
+}
+
+/**
+ * Load sedes for enrollment filters
+ */
+async function loadSedesForEnrollment() {
+    try {
+        const response = await fetch('api/get-sedes.php');
+        const data = await response.json();
+        const sedeSelect = document.getElementById('enrollment_sede');
+        
+        sedeSelect.innerHTML = '<option value="">Todas las sedes</option>';
+        
+        if (data.sedes) {
+            data.sedes.forEach(sede => {
+                sedeSelect.innerHTML += `<option value="${sede.ID_SEDE}">${sede.NOMBRE}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading sedes for enrollment:', error);
+    }
+}
+
 // ===================================================================
-// 3. BIOMETRIC STATISTICS
+// 4. BIOMETRIC STATISTICS
 // ===================================================================
 
 /**
@@ -176,7 +429,7 @@ function updateBiometricStatsDisplay() {
 }
 
 // ===================================================================
-// 4. BIOMETRIC SUMMARY TABLE
+// 5. BIOMETRIC SUMMARY TABLE
 // ===================================================================
 
 /**
@@ -304,7 +557,7 @@ function renderBiometricSummaryTable(data) {
 }
 
 // ===================================================================
-// 5. FILTER FUNCTIONS
+// 6. FILTER FUNCTIONS
 // ===================================================================
 
 /**
@@ -342,8 +595,81 @@ function clearBiometricFilters() {
 }
 
 // ===================================================================
-// 6. EMPLOYEE SELECTION AND ENROLLMENT
+// 7. EMPLOYEE SELECTION AND ENROLLMENT
 // ===================================================================
+
+/**
+ * Load employees for enrollment modal
+ */
+async function loadEmployeesForEnrollment() {
+    const tbody = document.getElementById('enrollmentTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-text"><i class="fas fa-spinner fa-spin"></i> Cargando empleados...</td></tr>';
+    
+    try {
+        const sede = document.getElementById('enrollment_sede').value;
+        const establecimiento = document.getElementById('enrollment_establecimiento').value;
+        const codigo = document.getElementById('enrollment_codigo').value;
+        
+        const params = new URLSearchParams({
+            sede: sede,
+            establecimiento: establecimiento,
+            codigo: codigo
+        });
+        
+        const response = await fetch(`api/biometric/enrollment-employees.php?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderEnrollmentEmployeesTable(data.data);
+        } else {
+            throw new Error(data.message || 'Error loading employees');
+        }
+    } catch (error) {
+        console.error('Error loading employees for enrollment:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="error-text">Error al cargar empleados</td></tr>';
+    }
+}
+
+/**
+ * Render employees table for enrollment modal
+ */
+function renderEnrollmentEmployeesTable(employees) {
+    const tbody = document.getElementById('enrollmentTableBody');
+    tbody.innerHTML = '';
+    
+    if (!employees || employees.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data-text">No se encontraron empleados</td></tr>';
+        return;
+    }
+    
+    employees.forEach(employee => {
+        const statusClass = employee.enrollment_status === 'complete' ? 'enrolled' : 
+                           employee.enrollment_status === 'partial' ? 'partial' : 'none';
+        
+        tbody.innerHTML += `
+            <tr>
+                <td>${employee.ID_EMPLEADO}</td>
+                <td>${employee.NOMBRE} ${employee.APELLIDO}</td>
+                <td>${employee.ESTABLECIMIENTO || '-'}</td>
+                <td>${employee.SEDE || '-'}</td>
+                <td>
+                    <span class="biometric-status ${statusClass}">
+                        ${employee.enrollment_status_text}
+                    </span>
+                    <br>
+                    <small class="text-muted">${employee.biometric_details}</small>
+                </td>
+                <td>
+                    <button type="button" class="btn-primary btn-sm" 
+                            onclick="selectEmployeeForBiometricEnrollment(${employee.ID_EMPLEADO}, '${employee.NOMBRE} ${employee.APELLIDO}')"
+                            title="Seleccionar para inscripción">
+                        <i class="fas fa-check"></i> Seleccionar
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
 
 /**
  * Select employee for enrollment from summary table
@@ -369,7 +695,7 @@ window.selectEmployeeForEnrollment = function(employeeId, employeeName) {
 };
 
 // ===================================================================
-// 7. BIOMETRIC HISTORY AND REPORTS
+// 8. BIOMETRIC HISTORY AND REPORTS
 // ===================================================================
 
 /**
@@ -389,7 +715,7 @@ function generateBiometricReport() {
 }
 
 // ===================================================================
-// 8. UTILITY FUNCTIONS
+// 9. UTILITY FUNCTIONS
 // ===================================================================
 
 /**

@@ -30,10 +30,10 @@ try {
         SELECT e.ID_EMPLEADO, e.NOMBRE, e.APELLIDO, e.ID_ESTABLECIMIENTO, 
                est.NOMBRE as ESTABLECIMIENTO, est.ID_SEDE,
                s.NOMBRE as SEDE
-        FROM empleados e
-        LEFT JOIN establecimientos est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-        LEFT JOIN sedes s ON est.ID_SEDE = s.ID_SEDE
-        WHERE e.ID_EMPLEADO = ? AND e.ACTIVO = 1
+        FROM EMPLEADO e
+        LEFT JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+        LEFT JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+        WHERE e.ID_EMPLEADO = ? AND e.ACTIVO = 'S'
     ");
     $stmt->execute([$id_empleado]);
     $empleado = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -61,13 +61,13 @@ try {
                    WHEN 6 THEN h.SABADO
                    WHEN 7 THEN h.DOMINGO
                END as ACTIVO_HOY
-        FROM empleado_horarios eh
-        JOIN horarios h ON eh.ID_HORARIO = h.ID_HORARIO
+        FROM EMPLEADO_HORARIO eh
+        JOIN HORARIO h ON eh.ID_HORARIO = h.ID_HORARIO
         WHERE eh.ID_EMPLEADO = ? 
-        AND eh.ACTIVO = 1 
-        AND h.ACTIVO = 1
-        AND (eh.FECHA_FIN IS NULL OR eh.FECHA_FIN >= ?)
-        HAVING ACTIVO_HOY = 1
+        AND eh.ACTIVO = 'S' 
+        AND h.ACTIVO = 'S'
+        AND (eh.FECHA_HASTA IS NULL OR eh.FECHA_HASTA >= ?)
+        HAVING ACTIVO_HOY = 'S'
         ORDER BY h.HORA_ENTRADA ASC
     ");
     $stmt->execute([$id_empleado, $fecha]);
@@ -87,7 +87,7 @@ try {
             SELECT COUNT(*) as entradas, 
                    MAX(CASE WHEN TIPO = 'ENTRADA' THEN HORA END) as ultima_entrada,
                    COUNT(CASE WHEN TIPO = 'SALIDA' THEN 1 END) as salidas
-            FROM asistencias 
+            FROM ASISTENCIA 
             WHERE ID_EMPLEADO = ? 
             AND FECHA = ? 
             AND ID_HORARIO = ?
@@ -132,7 +132,7 @@ try {
 
     // Insert attendance record
     $stmt = $conn->prepare("
-        INSERT INTO asistencias (
+        INSERT INTO ASISTENCIA (
             ID_EMPLEADO, 
             FECHA, 
             HORA, 

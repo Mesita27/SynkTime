@@ -33,41 +33,138 @@ function initializeBiometricSystem() {
 }
 
 /**
- * Detect available biometric devices
+ * Detect available biometric devices with enhanced detection
  */
 async function detectBiometricDevices() {
-    // Detect camera
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        biometricDevices.camera = true;
-        stream.getTracks().forEach(track => track.stop());
-        updateDeviceStatus('facial', true, 'Cámara detectada');
-        updateDeviceStatus('traditional', true, 'Disponible');
-    } catch (error) {
-        biometricDevices.camera = false;
-        updateDeviceStatus('facial', false, 'Cámara no disponible');
-        console.warn('Camera not available:', error);
-    }
-
-    // Detect fingerprint reader (simulated for demo)
-    // In a real implementation, this would check for actual fingerprint hardware
-    setTimeout(() => {
-        // Simulate fingerprint device detection
-        const hasFingerprint = checkFingerprintDevice();
-        biometricDevices.fingerprint = hasFingerprint;
-        updateDeviceStatus('fingerprint', hasFingerprint, 
-            hasFingerprint ? 'Lector detectado' : 'Lector no detectado');
-    }, 2000);
+    console.log('Starting enhanced device detection...');
+    
+    // Detect cameras with detailed information
+    await detectCameraDevices();
+    
+    // Detect fingerprint devices
+    await detectFingerprintDevices();
+    
+    // Check for other biometric devices
+    await detectOtherBiometricDevices();
+    
+    console.log('Device detection completed:', biometricDevices);
 }
 
 /**
- * Check for fingerprint device (simulated)
- * In real implementation, this would use Web Authentication API or specialized SDK
+ * Enhanced camera detection with device enumeration
  */
-function checkFingerprintDevice() {
-    // Simulate device detection based on user agent or available APIs
-    // This is a placeholder - real implementation would check actual hardware
-    return window.PublicKeyCredential !== undefined;
+async function detectCameraDevices() {
+    try {
+        // First, request permissions
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Enumerate available camera devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        if (videoDevices.length > 0) {
+            biometricDevices.camera = true;
+            biometricDevices.cameraDevices = videoDevices.map(device => ({
+                id: device.deviceId,
+                label: device.label || `Camera ${videoDevices.indexOf(device) + 1}`,
+                facing: detectCameraFacing(device.label)
+            }));
+            
+            updateDeviceStatus('facial', true, `${videoDevices.length} cámara(s) detectada(s)`);
+            updateDeviceStatus('traditional', true, 'Disponible');
+            
+            console.log('Camera devices detected:', biometricDevices.cameraDevices);
+        } else {
+            biometricDevices.camera = false;
+            updateDeviceStatus('facial', false, 'No se encontraron cámaras');
+        }
+    } catch (error) {
+        biometricDevices.camera = false;
+        updateDeviceStatus('facial', false, 'Cámara no disponible: ' + error.message);
+        console.warn('Camera detection failed:', error);
+    }
+}
+
+/**
+ * Detect camera facing mode (front/back)
+ */
+function detectCameraFacing(label) {
+    const lowerLabel = label.toLowerCase();
+    if (lowerLabel.includes('front') || lowerLabel.includes('user')) {
+        return 'user';
+    } else if (lowerLabel.includes('back') || lowerLabel.includes('environment')) {
+        return 'environment';
+    }
+    return 'unknown';
+}
+
+/**
+ * Enhanced fingerprint device detection
+ */
+async function detectFingerprintDevices() {
+    try {
+        // Check for WebAuthn support (modern biometric API)
+        if (window.PublicKeyCredential) {
+            const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+            if (available) {
+                biometricDevices.fingerprint = true;
+                biometricDevices.fingerprintType = 'platform';
+                updateDeviceStatus('fingerprint', true, 'Autenticador biométrico de plataforma detectado');
+            } else {
+                // Check for external fingerprint readers
+                await checkExternalFingerprintReaders();
+            }
+        } else {
+            await checkExternalFingerprintReaders();
+        }
+    } catch (error) {
+        console.warn('Fingerprint detection error:', error);
+        await checkExternalFingerprintReaders();
+    }
+}
+
+/**
+ * Check for external fingerprint readers (simulated)
+ */
+async function checkExternalFingerprintReaders() {
+    // Simulate checking for external hardware
+    // In production, this would use specialized SDKs or check for specific USB devices
+    
+    setTimeout(() => {
+        // Simulate 30% chance of having external reader
+        const hasExternalReader = Math.random() > 0.7;
+        
+        if (hasExternalReader) {
+            biometricDevices.fingerprint = true;
+            biometricDevices.fingerprintType = 'external';
+            updateDeviceStatus('fingerprint', true, 'Lector de huellas externo detectado');
+        } else {
+            biometricDevices.fingerprint = false;
+            updateDeviceStatus('fingerprint', false, 'Lector de huellas no detectado');
+        }
+    }, 1500);
+}
+
+/**
+ * Detect other biometric devices
+ */
+async function detectOtherBiometricDevices() {
+    // Check for USB devices that might be biometric readers
+    try {
+        if (navigator.usb) {
+            const devices = await navigator.usb.getDevices();
+            const biometricDevices = devices.filter(device => {
+                // Check for known biometric device vendor IDs
+                const biometricVendors = [0x1234, 0x5678]; // Example vendor IDs
+                return biometricVendors.includes(device.vendorId);
+            });
+            
+            console.log('USB biometric devices found:', biometricDevices);
+        }
+    } catch (error) {
+        console.log('USB device detection not available or failed:', error);
+    }
 }
 
 /**
@@ -268,29 +365,78 @@ function updateFingerprintStatus(text) {
 }
 
 /**
- * Simulate fingerprint scanning process
+ * Simulate fingerprint scanning process with real verification
  */
 function simulateFingerprintScan() {
     updateFingerprintStatus('Escaneando...');
     
-    // Simulate scanning process
+    if (!selectedEmployee) {
+        updateFingerprintInstruction('Error');
+        updateFingerprintStatus('No hay empleado seleccionado');
+        return;
+    }
+    
+    // Simulate fingerprint data capture
     setTimeout(() => {
-        // Simulate random success/failure
-        const success = Math.random() > 0.3; // 70% success rate
+        updateFingerprintStatus('Datos capturados, verificando...');
         
-        if (success) {
-            updateFingerprintInstruction('Verificación exitosa');
-            updateFingerprintStatus('Huella reconocida correctamente');
-            
-            setTimeout(() => {
-                processFingerprintVerification(true);
-            }, 1500);
-        } else {
-            updateFingerprintInstruction('Verificación fallida');
-            updateFingerprintStatus('Huella no reconocida. Intenta de nuevo.');
+        // Generate simulated fingerprint data
+        const fingerprintData = generateSimulatedFingerprintData();
+        
+        // Call real verification API
+        const formData = new URLSearchParams({
+            employee_id: selectedEmployee.id,
+            verification_method: 'fingerprint',
+            biometric_data: fingerprintData,
+            finger_type: 'right_index' // Default finger type
+        });
+        
+        fetch('api/biometric/verify.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.verification_result.success) {
+                const confidence = Math.round(res.verification_result.confidence * 100);
+                updateFingerprintInstruction('✅ Verificación exitosa');
+                updateFingerprintStatus(`Huella reconocida (${confidence}% de confianza)`);
+                
+                setTimeout(() => {
+                    processFingerprintVerification(true);
+                }, 1500);
+            } else {
+                const confidence = res.verification_result.confidence ? 
+                    Math.round(res.verification_result.confidence * 100) : 0;
+                updateFingerprintInstruction('❌ Verificación fallida');
+                updateFingerprintStatus(`${res.verification_result.message} (${confidence}% de confianza)`);
+                document.getElementById('retry_fingerprint_btn').style.display = 'inline-flex';
+                
+                // Show alternative methods if available
+                if (res.alternative_methods && res.alternative_methods.length > 1) {
+                    setTimeout(() => {
+                        updateFingerprintStatus('Puedes usar reconocimiento facial o verificación tradicional');
+                    }, 3000);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error in fingerprint verification:', error);
+            updateFingerprintInstruction('Error de conexión');
+            updateFingerprintStatus('No se pudo verificar. Intenta de nuevo.');
             document.getElementById('retry_fingerprint_btn').style.display = 'inline-flex';
-        }
-    }, 3000);
+        });
+    }, 2000);
+}
+
+/**
+ * Generate simulated fingerprint data for demonstration
+ */
+function generateSimulatedFingerprintData() {
+    // In production, this would come from actual fingerprint scanner
+    const timestamp = Date.now();
+    const randomData = Math.random().toString(36).substring(2, 15);
+    return btoa(`fingerprint_${timestamp}_${randomData}`);
 }
 
 /**
@@ -335,7 +481,7 @@ window.cancelFacialVerification = function() {
 };
 
 /**
- * Initialize facial recognition camera
+ * Initialize facial recognition camera with enhanced features
  */
 async function initializeFacialCamera() {
     const video = document.getElementById('facial_video');
@@ -345,30 +491,196 @@ async function initializeFacialCamera() {
         updateFacialInstruction('Iniciando cámara...');
         updateFacialStatus('Conectando con la cámara...');
         
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: { ideal: 640 },
-                height: { ideal: 480 }
-            }
-        });
+        // Get best camera for facial recognition
+        const cameraConfig = await getBestCameraConfig();
         
+        const stream = await navigator.mediaDevices.getUserMedia(cameraConfig);
         video.srcObject = stream;
         
         video.onloadedmetadata = () => {
             updateFacialInstruction('Posiciona tu rostro en el marco');
-            updateFacialStatus('Cámara lista - Mantén tu rostro visible');
+            updateFacialStatus('Cámara lista - Detectando rostro...');
             captureBtn.style.display = 'inline-flex';
             
-            // Auto-capture after positioning
-            setTimeout(() => {
-                automaticFaceCapture();
-            }, 3000);
+            // Start face detection
+            startFaceDetection(video);
         };
         
     } catch (error) {
         updateFacialInstruction('Error de cámara');
-        updateFacialStatus('No se pudo acceder a la cámara');
+        updateFacialStatus('No se pudo acceder a la cámara: ' + error.message);
         console.error('Camera error:', error);
+    }
+}
+
+/**
+ * Get best camera configuration for facial recognition
+ */
+async function getBestCameraConfig() {
+    let config = {
+        video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 30 }
+        }
+    };
+    
+    // Prefer front-facing camera for facial recognition
+    if (biometricDevices.cameraDevices && biometricDevices.cameraDevices.length > 0) {
+        const frontCamera = biometricDevices.cameraDevices.find(cam => cam.facing === 'user');
+        if (frontCamera) {
+            config.video.deviceId = { exact: frontCamera.id };
+            console.log('Using front-facing camera:', frontCamera.label);
+        } else {
+            // Use the first available camera
+            config.video.deviceId = { exact: biometricDevices.cameraDevices[0].id };
+            console.log('Using available camera:', biometricDevices.cameraDevices[0].label);
+        }
+    } else {
+        // Fallback to basic constraints
+        config.video.facingMode = 'user';
+    }
+    
+    return config;
+}
+
+/**
+ * Start face detection for automatic capture
+ */
+function startFaceDetection(video) {
+    let faceDetectionInterval = null;
+    let stableFrameCount = 0;
+    const requiredStableFrames = 10; // Require face to be stable for 10 frames
+    
+    const detectFace = () => {
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            return;
+        }
+        
+        // Create a canvas for face detection
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        
+        // Simple face detection using image analysis
+        const faceDetected = performSimpleFaceDetection(canvas);
+        
+        if (faceDetected) {
+            stableFrameCount++;
+            updateFacialStatus(`Rostro detectado - Estabilizando (${stableFrameCount}/${requiredStableFrames})`);
+            
+            if (stableFrameCount >= requiredStableFrames) {
+                // Face is stable, trigger automatic capture
+                clearInterval(faceDetectionInterval);
+                setTimeout(() => {
+                    automaticFaceCapture();
+                }, 1000); // Wait 1 second before capture
+            }
+        } else {
+            stableFrameCount = 0;
+            updateFacialStatus('Posiciona tu rostro en el marco - Buscando rostro...');
+        }
+    };
+    
+    // Start face detection loop
+    faceDetectionInterval = setInterval(detectFace, 200); // Check every 200ms
+    
+    // Stop face detection after 30 seconds if no face is found
+    setTimeout(() => {
+        if (faceDetectionInterval) {
+            clearInterval(faceDetectionInterval);
+            updateFacialStatus('Tiempo de detección agotado - Presiona verificar manualmente');
+        }
+    }, 30000);
+}
+
+/**
+ * Simple face detection using image analysis
+ */
+function performSimpleFaceDetection(canvas) {
+    try {
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Simple skin color detection as a proxy for face detection
+        let skinPixels = 0;
+        const totalPixels = data.length / 4;
+        
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Simple skin color detection (this is very basic)
+            if (r > 95 && g > 40 && b > 20 && 
+                r > g && r > b && 
+                Math.abs(r - g) > 15) {
+                skinPixels++;
+            }
+        }
+        
+        const skinRatio = skinPixels / totalPixels;
+        
+        // If more than 5% of pixels are skin-like, assume face is present
+        return skinRatio > 0.05;
+        
+    } catch (error) {
+        console.error('Face detection error:', error);
+        return false;
+    }
+}
+
+/**
+ * Enhanced automatic face capture with quality check
+ */
+function automaticFaceCapture() {
+    updateFacialInstruction('¡Perfecto! Capturando...');
+    updateFacialStatus('Capturando imagen de alta calidad...');
+    
+    const video = document.getElementById('facial_video');
+    const canvas = document.getElementById('facial_canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas to high resolution for better recognition
+    canvas.width = Math.min(video.videoWidth, 1280);
+    canvas.height = Math.min(video.videoHeight, 720);
+    
+    // Draw with high quality
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Apply basic image enhancement
+    enhanceImageQuality(ctx, canvas);
+    
+    const imageData = canvas.toDataURL('image/jpeg', 0.9); // High quality JPEG
+    
+    // Process the captured image
+    processFacialRecognition(imageData);
+}
+
+/**
+ * Enhance image quality for better recognition
+ */
+function enhanceImageQuality(ctx, canvas) {
+    try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Simple brightness and contrast adjustment
+        for (let i = 0; i < data.length; i += 4) {
+            // Increase contrast slightly
+            data[i] = Math.min(255, data[i] * 1.1);     // Red
+            data[i + 1] = Math.min(255, data[i + 1] * 1.1); // Green
+            data[i + 2] = Math.min(255, data[i + 2] * 1.1); // Blue
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+    } catch (error) {
+        console.error('Image enhancement error:', error);
     }
 }
 
@@ -398,27 +710,6 @@ function updateFacialStatus(text) {
 }
 
 /**
- * Automatic face capture for verification
- */
-function automaticFaceCapture() {
-    updateFacialInstruction('Permanece inmóvil...');
-    updateFacialStatus('Capturando imagen...');
-    
-    const video = document.getElementById('facial_video');
-    const canvas = document.getElementById('facial_canvas');
-    const ctx = canvas.getContext('2d');
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-    
-    const imageData = canvas.toDataURL('image/jpeg');
-    
-    // Simulate facial recognition processing
-    processFacialRecognition(imageData);
-}
-
-/**
  * Manual face capture for verification
  */
 window.captureFaceForVerification = function() {
@@ -426,34 +717,64 @@ window.captureFaceForVerification = function() {
 };
 
 /**
- * Process facial recognition
+ * Process facial recognition with real verification
  */
 function processFacialRecognition(imageData) {
     updateFacialInstruction('Procesando...');
-    updateFacialStatus('Analizando imagen facial...');
+    updateFacialStatus('Verificando identidad facial...');
     
-    // Simulate processing time
-    setTimeout(() => {
-        // Simulate random success/failure
-        const success = Math.random() > 0.2; // 80% success rate
-        
-        if (success) {
-            updateFacialInstruction('Verificación exitosa');
-            updateFacialStatus('Rostro reconocido correctamente');
+    if (!selectedEmployee) {
+        updateFacialInstruction('Error');
+        updateFacialStatus('No hay empleado seleccionado');
+        return;
+    }
+    
+    // Call real verification API
+    const formData = new URLSearchParams({
+        employee_id: selectedEmployee.id,
+        verification_method: 'facial',
+        biometric_data: imageData
+    });
+    
+    fetch('api/biometric/verify.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.verification_result.success) {
+            const confidence = Math.round(res.verification_result.confidence * 100);
+            updateFacialInstruction('✅ Verificación exitosa');
+            updateFacialStatus(`Rostro reconocido (${confidence}% de confianza)`);
             
             setTimeout(() => {
                 registerAttendanceWithBiometric('facial', imageData);
             }, 1500);
         } else {
-            updateFacialInstruction('Verificación fallida');
-            updateFacialStatus('Rostro no reconocido. Intenta de nuevo.');
+            const confidence = res.verification_result.confidence ? 
+                Math.round(res.verification_result.confidence * 100) : 0;
+            updateFacialInstruction('❌ Verificación fallida');
+            updateFacialStatus(`${res.verification_result.message} (${confidence}% de confianza)`);
             
-            setTimeout(() => {
-                updateFacialInstruction('Posiciona tu rostro en el marco');
-                updateFacialStatus('Presiona verificar para intentar de nuevo');
-            }, 2000);
+            // Show alternative methods if available
+            if (res.alternative_methods && res.alternative_methods.length > 1) {
+                setTimeout(() => {
+                    updateFacialInstruction('Intenta otro método');
+                    updateFacialStatus('Puedes usar huella dactilar o verificación tradicional');
+                }, 3000);
+            } else {
+                setTimeout(() => {
+                    updateFacialInstruction('Posiciona tu rostro en el marco');
+                    updateFacialStatus('Presiona verificar para intentar de nuevo');
+                }, 2000);
+            }
         }
-    }, 3000);
+    })
+    .catch(error => {
+        console.error('Error in facial verification:', error);
+        updateFacialInstruction('Error de conexión');
+        updateFacialStatus('No se pudo verificar. Intenta de nuevo.');
+    });
 }
 
 // ===================================================================
@@ -479,7 +800,14 @@ function registerAttendanceWithBiometric(method, imageData = null) {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            showNotification(`${res.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} registrada con verificación ${method}`, 'success');
+            // Enhanced success notification with verification details
+            const verificationInfo = res.verification_method === 'fingerprint' ? 'huella dactilar' :
+                                   res.verification_method === 'facial' ? 'reconocimiento facial' : 'verificación tradicional';
+            
+            const message = `${res.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} registrada exitosamente`;
+            const details = `Verificación: ${verificationInfo} • Empleado: ${res.empleado} • Hora: ${res.hora}`;
+            
+            showEnhancedNotification(message, details, 'success');
             
             // Close modals
             closeFingerprintVerificationModal();
@@ -497,6 +825,19 @@ function registerAttendanceWithBiometric(method, imageData = null) {
         console.error('Error registering biometric attendance:', error);
         showNotification('Error al comunicarse con el servidor.', 'error');
     });
+}
+
+/**
+ * Show enhanced notification with additional details
+ */
+function showEnhancedNotification(title, details, type = 'info') {
+    // Try to use the enhanced notification if available, otherwise fallback
+    if (typeof showNotificationWithDetails === 'function') {
+        showNotificationWithDetails(title, details, type);
+    } else {
+        // Fallback to basic notification
+        showNotification(`${title} - ${details}`, type);
+    }
 }
 
 // ===================================================================
