@@ -1,195 +1,197 @@
-# SynkTime - Modern Architecture Migration
+# SynkTime - Sistema de Asistencia Biométrica Moderno
 
-This repository contains the modernized version of the SynkTime attendance management system, migrated from PHP/JS/CSS to a modern Node.js/React.js architecture.
+Este repositorio contiene el sistema SynkTime refactorizado para trabajar con la base de datos SQL existente, migrando de PHP/JS/CSS a una arquitectura moderna Node.js/React.js que mantiene compatibilidad completa con el sistema legacy.
 
-## 🏗️ Architecture Overview
+## 🏗️ Arquitectura Refactorizada
 
 ### Backend (Node.js/Express)
-- **Location**: `/backend/`
-- **Technology Stack**: Node.js, Express.js, MySQL, JWT Authentication
-- **Features**: 
-  - RESTful API design
-  - JWT-based authentication
-  - Advanced biometric services
-  - Database abstraction layer
-  - Comprehensive error handling
+- **Ubicación**: `/backend/`
+- **Stack Tecnológico**: Node.js, Express.js, MariaDB/MySQL, JWT Authentication
+- **Compatibilidad**: Integra completamente con el esquema de base de datos PHP existente
+- **Características**: 
+  - API RESTful con esquema correcto de base de datos
+  - Autenticación JWT con tabla USUARIO
+  - Servicios biométricos avanzados
+  - Manejo de empleados con jerarquía EMPRESA→SEDE→ESTABLECIMIENTO→EMPLEADO
+  - Registro de asistencia con tabla ASISTENCIA
 
 ### Frontend (React.js)
-- **Location**: `/frontend/`
-- **Technology Stack**: React.js, Material-UI, Vite, React Query
-- **Features**:
-  - Modern component-based architecture
-  - Real-time biometric device detection
-  - Advanced biometric enrollment and verification
-  - Responsive design with Material-UI
-  - Progressive Web App capabilities
+- **Ubicación**: `/frontend/`
+- **Stack Tecnológico**: React.js, Material-UI, Vite, React Query
+- **Características**:
+  - Interfaz moderna conectada al nuevo backend
+  - Detección de dispositivos biométricos en tiempo real
+  - Inscripción y verificación biométrica avanzada
+  - Diseño responsivo con Material-UI
+  - Capacidades de Progressive Web App
 
-## 🚀 Quick Start
+## 🔧 Cambios Principales del Refactoring
 
-### Prerequisites
+### ✅ Corrección de Esquema de Base de Datos
+**Problema Resuelto**: El backend original usaba nombres de tabla en minúsculas (usuarios, empleados) mientras que el sistema PHP usa mayúsculas (USUARIO, EMPLEADO).
+
+**Solución Implementada**:
+- Actualizado `authService` para usar tabla `USUARIO` con campos `ID_USUARIO`, `USERNAME`, `CONTRASENA`
+- Actualizado `employeeService` para usar tabla `EMPLEADO` con relaciones correctas
+- Actualizado `attendanceService` para usar tabla `ASISTENCIA` con tipos correctos
+- Actualizado `biometricService` para usar referencias correctas a `EMPLEADO`
+
+### ✅ Servicios Backend Completos
+- **Gestión de Empleados**: CRUD completo con jerarquía de empresa
+- **Registro de Asistencia**: Entrada/salida automática con métodos biométricos
+- **Autenticación**: JWT con compatibilidad de contraseñas legacy
+- **Biométricos**: Inscripción de huellas/facial con auditoría completa
+
+### ✅ API Endpoints Actualizados
+```
+# Autenticación
+POST /api/v1/auth/login          # Login con tabla USUARIO
+GET  /api/v1/auth/me             # Info usuario actual
+POST /api/v1/auth/logout         # Logout
+
+# Empleados (con tabla EMPLEADO)
+GET  /api/v1/employees           # Lista empleados con filtros
+GET  /api/v1/employees/:id       # Empleado específico
+POST /api/v1/employees           # Crear empleado
+PUT  /api/v1/employees/:id       # Actualizar empleado
+DELETE /api/v1/employees/:id     # Eliminar empleado
+
+# Asistencia (con tabla ASISTENCIA)
+POST /api/v1/attendance/register # Registrar asistencia
+GET  /api/v1/attendance/records  # Registros con filtros
+GET  /api/v1/attendance/summary  # Resumen para dashboard
+
+# Biométricos
+POST /api/v1/biometric/enroll/fingerprint  # Inscribir huella
+POST /api/v1/biometric/enroll/facial       # Inscribir facial
+POST /api/v1/biometric/verify              # Verificar biométrico
+```
+
+## 🚀 Inicio Rápido
+
+### Prerrequisitos
 - Node.js 16+ 
-- MySQL 5.7+
-- npm or yarn
+- MariaDB/MySQL 5.7+ con base de datos SynkTime existente
+- npm o yarn
 
-### Backend Setup
+### Configuración Backend
 
-1. Navigate to backend directory:
+1. Navegar al directorio backend:
 ```bash
 cd backend
 ```
 
-2. Install dependencies:
+2. Instalar dependencias:
 ```bash
 npm install
 ```
 
-3. Configure environment:
+3. Configurar variables de entorno:
 ```bash
 cp .env.example .env
-# Edit .env with your database credentials
+# Editar .env con credenciales de la base de datos PHP existente
 ```
 
-4. Start development server:
+4. Iniciar servidor de desarrollo:
 ```bash
 npm run dev
 ```
 
-The backend will be available at `http://localhost:3001`
+El backend estará disponible en `http://localhost:3001`
 
-### Frontend Setup
+### Configuración Frontend
 
-1. Navigate to frontend directory:
+1. Navegar al directorio frontend:
 ```bash
 cd frontend
 ```
 
-2. Install dependencies:
+2. Instalar dependencias:
 ```bash
 npm install
 ```
 
-3. Start development server:
+3. Iniciar servidor de desarrollo:
 ```bash
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000`
+El frontend estará disponible en `http://localhost:3000`
 
-## 🔧 API Endpoints
+## 📊 Estructura de Base de Datos
 
-### Authentication
-- `POST /api/v1/auth/login` - User login
-- `GET /api/v1/auth/me` - Get current user
-- `POST /api/v1/auth/logout` - User logout
+### Tablas Principales (Esquema PHP Mantenido)
+- **EMPRESA** - Empresas/organizaciones
+- **SEDE** - Oficinas de la empresa
+- **ESTABLECIMIENTO** - Establecimientos específicos
+- **EMPLEADO** - Registros de empleados
+- **USUARIO** - Usuarios del sistema
+- **ASISTENCIA** - Registros de asistencia
+- **HORARIO** / **EMPLEADO_HORARIO** - Gestión de horarios
+- **biometric_data** / **biometric_logs** - Datos biométricos
 
-### Biometric
-- `GET /api/v1/biometric/employee/:id/summary` - Get employee biometric summary
-- `POST /api/v1/biometric/enroll/fingerprint` - Enroll fingerprint
-- `POST /api/v1/biometric/enroll/facial` - Enroll facial biometric
-- `POST /api/v1/biometric/verify` - Verify biometric data
-- `GET /api/v1/biometric/stats` - Get biometric statistics
-- `GET /api/v1/biometric/devices/status` - Get device status
+Ver documentación completa en `DATABASE_SCHEMA.md`
 
-## 🔐 Security Features
+## 🔐 Características de Seguridad
 
-- JWT token-based authentication
-- Rate limiting on API endpoints
-- Input validation and sanitization
-- CORS protection
-- Helmet.js security headers
-- Bcrypt password hashing
+- Autenticación basada en tokens JWT
+- Validación de entrada con express-validator
+- Protección CORS
+- Headers de seguridad con Helmet.js
+- Hashing de contraseñas con Bcrypt
+- Aislamiento por empresa (usuarios solo ven datos de su empresa)
 
-## 📱 Frontend Features
+## 📱 Características del Frontend
 
-### Biometric Enrollment
-- Interactive finger selection interface
-- Real-time camera feed for facial recognition
-- Progress tracking and status updates
-- Device availability detection
+### Inscripción Biométrica
+- Interfaz de selección de dedos interactiva
+- Feed de cámara en tiempo real para reconocimiento facial
+- Seguimiento de progreso y actualizaciones de estado
+- Detección de disponibilidad de dispositivos
 
-### Attendance Registration
-- Multi-step verification wizard
-- Support for fingerprint, facial, and traditional methods
-- Real-time feedback and error handling
+### Registro de Asistencia
+- Asistente de verificación en múltiples pasos
+- Soporte para huella dactilar, facial y métodos tradicionales
+- Retroalimentación en tiempo real y manejo de errores
 
 ### Dashboard
-- Real-time statistics and charts
-- Device status monitoring
-- Recent activity tracking
-- Responsive design
+- Estadísticas en tiempo real y gráficos
+- Monitoreo de estado de dispositivos
+- Seguimiento de actividad reciente
+- Diseño responsivo
 
-## 🛠️ Technology Stack
+## 📂 Documentación
 
-### Backend Dependencies
-- **Express.js** - Web framework
-- **MySQL2** - Database driver
-- **jsonwebtoken** - JWT implementation
-- **bcryptjs** - Password hashing
-- **express-validator** - Input validation
-- **helmet** - Security headers
-- **cors** - Cross-origin resource sharing
-- **morgan** - HTTP request logging
+- `DATABASE_SCHEMA.md` - Documentación completa del esquema de base de datos
+- `MIGRATION_DOCUMENTATION.md` - Detalles técnicos de la migración
+- `MIGRATION_GUIDE.md` - Guía paso a paso para migración de datos
+- `BIOMETRIC_DOCUMENTATION.md` - Documentación del sistema biométrico
 
-### Frontend Dependencies
-- **React 18** - UI library
-- **Material-UI v5** - Component library
-- **React Router v6** - Client-side routing
-- **React Query** - Data fetching and caching
-- **Axios** - HTTP client
-- **React Webcam** - Camera integration
-- **Recharts** - Data visualization
-- **Notistack** - Toast notifications
+## 🔄 Compatibilidad con Sistema PHP
 
-## 🔄 Migration from PHP System
+El sistema refactorizado mantiene **100% compatibilidad** con el sistema PHP existente:
 
-The new architecture maintains compatibility with the existing PHP database schema while providing:
-
-1. **Modern API Layer**: RESTful endpoints replace PHP procedural scripts
-2. **Component-Based UI**: React components replace PHP mixed markup
-3. **Real-time Features**: WebSocket support for live updates
-4. **Enhanced Security**: JWT tokens replace session-based authentication
-5. **Better UX**: Single-page application with smooth navigation
-
-## 📂 Project Structure
-
-```
-synktime/
-├── backend/                 # Node.js backend
-│   ├── config/             # Database and app configuration
-│   ├── controllers/        # Request handlers
-│   ├── middleware/         # Custom middleware
-│   ├── models/             # Data models
-│   ├── routes/             # API routes
-│   ├── services/           # Business logic
-│   ├── utils/              # Utility functions
-│   └── tests/              # Backend tests
-├── frontend/               # React frontend
-│   ├── public/             # Static assets
-│   ├── src/
-│   │   ├── components/     # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   ├── context/        # React context
-│   │   ├── hooks/          # Custom hooks
-│   │   └── utils/          # Utility functions
-└── legacy/                 # Original PHP system (preserved)
-```
+1. **Misma Base de Datos**: Usa exactamente las mismas tablas y estructura
+2. **Usuarios Existentes**: Los usuarios pueden iniciar sesión sin cambios
+3. **Datos Existentes**: Todos los datos históricos se mantienen
+4. **Operación Paralela**: Puede ejecutarse junto al sistema PHP
+5. **Migración Gradual**: Permite transición por fases
 
 ## 🧪 Testing
 
-### Backend Tests
+### Backend
 ```bash
 cd backend
 npm test
 ```
 
-### Frontend Tests
+### Frontend
 ```bash
 cd frontend
 npm test
 ```
 
-## 🚀 Production Deployment
+## 🚀 Despliegue en Producción
 
 ### Backend
 ```bash
@@ -202,43 +204,60 @@ npm start
 ```bash
 cd frontend
 npm run build
-# Serve the dist/ directory with your web server
+# Servir el directorio dist/ con nginx/apache
 ```
 
-## 🔮 Advanced Features
+## 📈 Mejoras Implementadas
 
-### Biometric Integration
-- WebAuthn support for hardware security keys
-- Face-api.js for facial recognition
-- WebUSB integration for fingerprint devices
-- Progressive enhancement for device capabilities
+### Para Desarrolladores
+- Tooling moderno con hot reload
+- Arquitectura basada en componentes
+- Separación clara de responsabilidades
+- Listo para microservicios
 
-### Real-time Updates
-- WebSocket integration for live dashboard updates
-- Real-time attendance notifications
-- Device status monitoring
+### Para Usuarios
+- Navegación SPA fluida
+- Interfaz móvil optimizada
+- Características de accesibilidad
+- Carga de páginas más rápida
 
-### Progressive Web App
-- Offline capability
-- Push notifications
-- Mobile-optimized interface
+### Para Administradores
+- Dashboard con analytics en tiempo real
+- Seguridad mejorada con JWT
+- Logs de auditoría completos
+- Fácil monitoreo y despliegue
 
-## 📝 Contributing
+## 🛠️ Stack Tecnológico
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+### Dependencias Backend
+- **Express.js** - Framework web
+- **MySQL2** - Driver de base de datos para MariaDB/MySQL
+- **jsonwebtoken** - Implementación JWT
+- **bcryptjs** - Hashing de contraseñas
+- **express-validator** - Validación de entrada
+- **helmet** - Headers de seguridad
+- **cors** - Intercambio de recursos entre orígenes
 
-## 📄 License
+### Dependencias Frontend
+- **React 18** - Librería UI
+- **Material-UI v5** - Librería de componentes
+- **React Router v6** - Enrutamiento del lado del cliente
+- **React Query** - Obtención y caché de datos
+- **Axios** - Cliente HTTP
+- **React Webcam** - Integración de cámara
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🤝 Contribuir
 
-## 🤝 Support
+1. Hacer fork del repositorio
+2. Crear una rama de característica
+3. Hacer commit de los cambios
+4. Push a la rama
+5. Crear un Pull Request
 
-For support, email your-email@example.com or create an issue in the repository.
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la Licencia MIT - ver el archivo LICENSE para detalles.
 
 ---
 
-Built with ❤️ for modern attendance management
+Construido con ❤️ para gestión moderna de asistencia manteniendo compatibilidad total con sistemas legacy.
