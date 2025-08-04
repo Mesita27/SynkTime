@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1';
 
 class ApiService {
   constructor() {
@@ -111,20 +111,70 @@ class ApiService {
     return response.devices;
   }
 
-  // Employee endpoints (basic implementations)
+  // Employee endpoints
   async getEmployees(params = {}) {
     const response = await this.client.get('/employees', { params });
     return response.data;
   }
 
-  // Attendance endpoints (basic implementations)
-  async getAttendance(params = {}) {
-    const response = await this.client.get('/attendance', { params });
+  async getEmployee(employeeId) {
+    const response = await this.client.get(`/employees/${employeeId}`);
+    return response.data;
+  }
+
+  async createEmployee(employeeData) {
+    const response = await this.client.post('/employees', employeeData);
+    return response;
+  }
+
+  async updateEmployee(employeeId, employeeData) {
+    const response = await this.client.put(`/employees/${employeeId}`, employeeData);
+    return response;
+  }
+
+  async deleteEmployee(employeeId) {
+    const response = await this.client.delete(`/employees/${employeeId}`);
+    return response;
+  }
+
+  async getCompanyLocations() {
+    const response = await this.client.get('/employees/locations/company');
+    return response.data;
+  }
+
+  async assignSchedule(employeeId, scheduleData) {
+    const response = await this.client.post(`/employees/${employeeId}/schedule`, scheduleData);
+    return response;
+  }
+
+  // Attendance endpoints
+  async getAttendanceRecords(params = {}) {
+    const response = await this.client.get('/attendance/records', { params });
+    return response.data;
+  }
+
+  async getAttendanceSummary(params = {}) {
+    const response = await this.client.get('/attendance/summary', { params });
+    return response.data;
+  }
+
+  async getEmployeeAttendance(employeeId, params = {}) {
+    const response = await this.client.get(`/attendance/employee/${employeeId}`, { params });
     return response.data;
   }
 
   async registerAttendance(data) {
     const response = await this.client.post('/attendance/register', data);
+    return response;
+  }
+
+  async updateAttendance(attendanceId, data) {
+    const response = await this.client.put(`/attendance/${attendanceId}`, data);
+    return response;
+  }
+
+  async deleteAttendance(attendanceId) {
+    const response = await this.client.delete(`/attendance/${attendanceId}`);
     return response;
   }
 }
