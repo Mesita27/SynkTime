@@ -22,9 +22,22 @@ router.post(
     try {
       const { username, password } = req.body;
 
-      // Get user from database
+      // Get user from database using correct table name from PHP schema
       const users = await database.query(
-        'SELECT * FROM usuarios WHERE USUARIO = ? AND ACTIVO = 1',
+        `SELECT 
+          u.ID_USUARIO,
+          u.USERNAME,
+          u.CONTRASENA,
+          u.NOMBRE_COMPLETO,
+          u.EMAIL,
+          u.ROL,
+          u.ID_EMPRESA,
+          u.ESTADO,
+          e.NOMBRE AS EMPRESA_NOMBRE,
+          e.ESTADO AS EMPRESA_ESTADO
+        FROM USUARIO u
+        INNER JOIN EMPRESA e ON u.ID_EMPRESA = e.ID_EMPRESA
+        WHERE u.USERNAME = ? AND u.ESTADO = 'A'`,
         [username]
       );
 
@@ -37,14 +50,22 @@ router.post(
 
       const user = users[0];
 
+      // Verify company is active
+      if (user.EMPRESA_ESTADO !== 'A') {
+        return res.status(401).json({
+          success: false,
+          message: 'Empresa inactiva. Contacte al administrador'
+        });
+      }
+
       // For PHP compatibility, check if password is hashed or plain text
       let isValidPassword = false;
-      if (user.PASSWORD.startsWith('$2')) {
+      if (user.CONTRASENA && user.CONTRASENA.startsWith('$2')) {
         // Bcrypt hash
-        isValidPassword = await comparePassword(password, user.PASSWORD);
+        isValidPassword = await comparePassword(password, user.CONTRASENA);
       } else {
         // Plain text password (legacy)
-        isValidPassword = password === user.PASSWORD;
+        isValidPassword = password === user.CONTRASENA;
       }
 
       if (!isValidPassword) {
@@ -57,22 +78,18 @@ router.post(
       // Generate JWT token
       const token = generateToken(user);
 
-      // Get additional user info
-      const empresa = await database.query(
-        'SELECT NOMBRE_EMPRESA FROM empresas WHERE ID_EMPRESA = ?',
-        [user.ID_EMPRESA]
-      );
-
       res.json({
         success: true,
         message: 'Inicio de sesión exitoso',
         token,
         user: {
-          id: user.ID,
-          username: user.USUARIO,
+          id: user.ID_USUARIO,
+          username: user.USERNAME,
+          nombre_completo: user.NOMBRE_COMPLETO,
+          email: user.EMAIL,
           rol: user.ROL,
           empresa_id: user.ID_EMPRESA,
-          empresa_nombre: empresa.length ? empresa[0].NOMBRE_EMPRESA : 'N/A'
+          empresa_nombre: user.EMPRESA_NOMBRE
         }
       });
     } catch (error) {
@@ -118,9 +135,20 @@ router.get('/me', async (req, res) => {
     const { verifyToken } = require('../middleware/auth');
     const decoded = verifyToken(token);
 
-    // Get fresh user data
+    // Get fresh user data using correct table names
     const users = await database.query(
-      'SELECT u.*, e.NOMBRE_EMPRESA FROM usuarios u LEFT JOIN empresas e ON u.ID_EMPRESA = e.ID_EMPRESA WHERE u.ID = ? AND u.ACTIVO = 1',
+      `SELECT 
+        u.ID_USUARIO,
+        u.USERNAME,
+        u.NOMBRE_COMPLETO,
+        u.EMAIL,
+        u.ROL,
+        u.ID_EMPRESA,
+        u.ESTADO,
+        e.NOMBRE AS EMPRESA_NOMBRE
+      FROM USUARIO u 
+      LEFT JOIN EMPRESA e ON u.ID_EMPRESA = e.ID_EMPRESA 
+      WHERE u.ID_USUARIO = ? AND u.ESTADO = 'A'`,
       [decoded.id]
     );
 
@@ -136,11 +164,13 @@ router.get('/me', async (req, res) => {
     res.json({
       success: true,
       user: {
-        id: user.ID,
-        username: user.USUARIO,
+        id: user.ID_USUARIO,
+        username: user.USERNAME,
+        nombre_completo: user.NOMBRE_COMPLETO,
+        email: user.EMAIL,
         rol: user.ROL,
         empresa_id: user.ID_EMPRESA,
-        empresa_nombre: user.NOMBRE_EMPRESA || 'N/A'
+        empresa_nombre: user.EMPRESA_NOMBRE || 'N/A'
       }
     });
   } catch (error) {

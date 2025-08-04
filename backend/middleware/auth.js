@@ -11,8 +11,8 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const generateToken = (user) => {
   return jwt.sign(
     {
-      id: user.ID,
-      username: user.USUARIO,
+      id: user.ID_USUARIO,
+      username: user.USERNAME,
       empresa_id: user.ID_EMPRESA,
       rol: user.ROL
     },
@@ -59,9 +59,9 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = verifyToken(token);
     
-    // Verify user still exists and is active
+    // Verify user still exists and is active using correct table name
     const user = await database.query(
-      'SELECT * FROM usuarios WHERE ID = ? AND ACTIVO = 1',
+      'SELECT * FROM USUARIO WHERE ID_USUARIO = ? AND ESTADO = "A"',
       [decoded.id]
     );
 

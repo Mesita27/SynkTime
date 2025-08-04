@@ -6,9 +6,9 @@ class BiometricService {
    */
   async getEmployeeBiometricSummary(employeeId) {
     try {
-      // Get employee info
+      // Get employee info using correct table name
       const employee = await database.query(
-        'SELECT ID_EMPLEADO, NOMBRE, APELLIDO FROM empleados WHERE ID_EMPLEADO = ? AND ACTIVO = 1',
+        'SELECT ID_EMPLEADO, NOMBRE, APELLIDO FROM EMPLEADO WHERE ID_EMPLEADO = ? AND ACTIVO = "S"',
         [employeeId]
       );
 
@@ -59,9 +59,9 @@ class BiometricService {
    */
   async enrollFingerprint(employeeId, fingerType, fingerprintData) {
     try {
-      // Validate employee exists
+      // Validate employee exists using correct table name
       const employee = await database.query(
-        'SELECT ID_EMPLEADO, NOMBRE, APELLIDO FROM empleados WHERE ID_EMPLEADO = ? AND ACTIVO = 1',
+        'SELECT ID_EMPLEADO, NOMBRE, APELLIDO FROM EMPLEADO WHERE ID_EMPLEADO = ? AND ACTIVO = "S"',
         [employeeId]
       );
 
@@ -122,9 +122,9 @@ class BiometricService {
    */
   async enrollFacial(employeeId, facialData) {
     try {
-      // Validate employee exists
+      // Validate employee exists using correct table name
       const employee = await database.query(
-        'SELECT ID_EMPLEADO, NOMBRE, APELLIDO FROM empleados WHERE ID_EMPLEADO = ? AND ACTIVO = 1',
+        'SELECT ID_EMPLEADO, NOMBRE, APELLIDO FROM EMPLEADO WHERE ID_EMPLEADO = ? AND ACTIVO = "S"',
         [employeeId]
       );
 
@@ -234,18 +234,22 @@ class BiometricService {
           COUNT(CASE WHEN bd.BIOMETRIC_TYPE = 'fingerprint' THEN 1 END) as fingerprint_enrollments,
           COUNT(CASE WHEN bd.BIOMETRIC_TYPE = 'facial' THEN 1 END) as facial_enrollments,
           COUNT(DISTINCT CASE WHEN bl.VERIFICATION_SUCCESS = 1 THEN bl.ID_EMPLEADO END) as successful_verifications_today
-         FROM empleados e
+         FROM EMPLEADO e
+         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+         JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
          LEFT JOIN biometric_data bd ON e.ID_EMPLEADO = bd.ID_EMPLEADO AND bd.ACTIVO = 1
          LEFT JOIN biometric_logs bl ON e.ID_EMPLEADO = bl.ID_EMPLEADO AND bl.FECHA = CURDATE()
-         WHERE e.ID_EMPRESA = ? AND e.ACTIVO = 1`,
+         WHERE s.ID_EMPRESA = ? AND e.ACTIVO = "S"`,
         [empresaId]
       );
 
       const recentActivity = await database.query(
         `SELECT bl.*, e.NOMBRE, e.APELLIDO
          FROM biometric_logs bl
-         JOIN empleados e ON bl.ID_EMPLEADO = e.ID_EMPLEADO
-         WHERE e.ID_EMPRESA = ? AND bl.CREATED_AT >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+         JOIN EMPLEADO e ON bl.ID_EMPLEADO = e.ID_EMPLEADO
+         JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+         JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+         WHERE s.ID_EMPRESA = ? AND bl.CREATED_AT >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
          ORDER BY bl.CREATED_AT DESC
          LIMIT 10`,
         [empresaId]
@@ -322,7 +326,7 @@ class BiometricService {
         CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         ACTIVO TINYINT(1) DEFAULT 1,
-        FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO),
+        FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO),
         UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
       )
     `;
@@ -336,7 +340,7 @@ class BiometricService {
         FECHA DATE,
         HORA TIME,
         CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO)
+        FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO)
       )
     `;
 
