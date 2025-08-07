@@ -258,3 +258,103 @@
     </div>
   </div>
 </div>
+
+<!-- Modal de Opciones Biométricas -->
+<div class="modal" id="biometricOptionsModal">
+  <div class="modal-content">
+    <button type="button" class="modal-close" aria-label="Cerrar" onclick="closeBiometricOptionsModal()">
+      <i class="fas fa-times"></i>
+    </button>
+    
+    <div class="modal-header">
+      <h3 class="modal-title"><i class="fas fa-fingerprint"></i> Opciones de Inscripción Biométrica</h3>
+      <p class="modal-subtitle">Selecciona el tipo de registro para el empleado</p>
+    </div>
+    
+    <div class="modal-body">
+      <div class="selected-employee-summary">
+        <div class="employee-card">
+          <div class="employee-avatar">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <div class="employee-details">
+            <h4 id="biometric_options_employee_name">Nombre del Empleado</h4>
+            <p><strong>Código:</strong> <span id="biometric_options_employee_code">000</span></p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="biometric-type-selection">
+        <h4><i class="fas fa-hand-pointer"></i> Selecciona el tipo de inscripción:</h4>
+        
+        <div class="biometric-type-options">
+          <div class="biometric-type-card" onclick="selectBiometricEnrollmentType('fingerprint')">
+            <div class="type-icon fingerprint-icon">
+              <i class="fas fa-fingerprint"></i>
+            </div>
+            <div class="type-content">
+              <h5>Solo Huella Dactilar</h5>
+              <p>Registrar únicamente las huellas dactilares del empleado</p>
+              <div class="type-features">
+                <span class="feature"><i class="fas fa-check"></i> Rápido y eficiente</span>
+                <span class="feature"><i class="fas fa-check"></i> Alta precisión</span>
+              </div>
+            </div>
+            <div class="device-status-indicator" id="fingerprint_status_indicator">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+          </div>
+          
+          <div class="biometric-type-card" onclick="selectBiometricEnrollmentType('facial')">
+            <div class="type-icon facial-icon">
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="type-content">
+              <h5>Solo Reconocimiento Facial</h5>
+              <p>Registrar únicamente el patrón facial del empleado</p>
+              <div class="type-features">
+                <span class="feature"><i class="fas fa-check"></i> Sin contacto físico</span>
+                <span class="feature"><i class="fas fa-check"></i> Fácil de usar</span>
+              </div>
+            </div>
+            <div class="device-status-indicator" id="facial_status_indicator">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+          </div>
+          
+          <div class="biometric-type-card recommended" onclick="selectBiometricEnrollmentType('both')">
+            <div class="recommended-badge">
+              <i class="fas fa-star"></i> Recomendado
+            </div>
+            <div class="type-icon combined-icon">
+              <i class="fas fa-fingerprint"></i>
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="type-content">
+              <h5>Inscripción Completa</h5>
+              <p>Registrar tanto huella dactilar como patrón facial para máxima seguridad</p>
+              <div class="type-features">
+                <span class="feature"><i class="fas fa-check"></i> Máxima seguridad</span>
+                <span class="feature"><i class="fas fa-check"></i> Respaldo dual</span>
+                <span class="feature"><i class="fas fa-check"></i> Flexibilidad</span>
+              </div>
+            </div>
+            <div class="device-status-indicator" id="combined_status_indicator">
+              <i class="fas fa-check-circle available"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="enrollment-notes">
+        <div class="note-card">
+          <i class="fas fa-info-circle"></i>
+          <div class="note-content">
+            <h6>Nota importante:</h6>
+            <p>Se recomienda la inscripción completa para mayor seguridad y respaldo en caso de fallos en un método de verificación.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

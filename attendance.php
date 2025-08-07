@@ -18,6 +18,7 @@ requireModuleAccess('asistencia'); // Verificar permisos para módulo de asisten
     <link rel="stylesheet" href="assets/css/pagination.css">
     <link rel="stylesheet" href="assets/css/attendance-pagination.css">
     <link rel="stylesheet" href="assets/css/biometric.css">
+    <link rel="stylesheet" href="assets/css/employee-navigation.css">
 </head>
 <body>
 <div class="app-container">
@@ -86,12 +87,14 @@ requireModuleAccess('asistencia'); // Verificar permisos para módulo de asisten
             
             <?php include 'components/attendance_register_modal.php'; ?>
             <?php include 'components/attendance_photo_modal.php'; ?>
+            <?php include 'components/photo_modal.php'; ?>
             <?php include 'components/attendance_observation_modal.php'; ?>
             <?php include 'components/biometric_verification_modal.php'; ?>
         </main>
     </div>
 </div>
 <script src="assets/js/layout.js"></script>
+<script src="assets/js/employee-navigation.js"></script>
 <script src="assets/js/attendance.js"></script>
 <script src="assets/js/biometric.js"></script>
 </body>

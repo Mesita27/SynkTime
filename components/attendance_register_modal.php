@@ -31,6 +31,9 @@
               <button type="button" id="btnBuscarCodigoRegistro" class="btn-primary">
                 <i class="fas fa-search"></i> Buscar
               </button>
+              <button type="button" class="btn-secondary" onclick="openEmployeeNavigationModal()">
+                <i class="fas fa-users"></i> Navegar Empleados
+              </button>
             </div>
         </div>
       </div>

@@ -1,0 +1,499 @@
+/* =================================================================== */
+/* ENHANCED BIOMETRIC ENROLLMENT PAGE STYLES */
+/* Improved employee status module with AJAX search and navigation */
+/* =================================================================== */
+
+/* Status tabs navigation */
+.biometric-status-tabs {
+    display: flex;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 0;
+    overflow-x: auto;
+}
+
+.status-tab {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: #666;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    min-width: 140px;
+}
+
+.status-tab:hover {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+}
+
+.status-tab.active {
+    background: #007bff;
+    color: white;
+    border-bottom: 3px solid #0056b3;
+}
+
+.status-tab i {
+    font-size: 14px;
+}
+
+/* Enhanced filters */
+.biometric-filters.enhanced {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.biometric-filters.enhanced .filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.biometric-filters.enhanced .filter-group label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #495057;
+    font-size: 13px;
+}
+
+.biometric-filters.enhanced .filter-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.biometric-filters.enhanced .filter-actions .btn-primary,
+.biometric-filters.enhanced .filter-actions .btn-secondary,
+.biometric-filters.enhanced .filter-actions .btn-success {
+    min-width: 90px;
+    height: 38px;
+    font-size: 13px;
+}
+
+/* Summary controls */
+.biometric-summary-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.results-info {
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.view-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.view-controls label {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+}
+
+.view-controls select {
+    min-width: 120px;
+    height: 32px;
+    font-size: 13px;
+}
+
+/* Enhanced table */
+.biometric-table-container.enhanced {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.biometric-table.enhanced {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 0;
+}
+
+.biometric-table.enhanced thead {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 2px solid #dee2e6;
+}
+
+.biometric-table.enhanced th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: relative;
+    white-space: nowrap;
+}
+
+.biometric-table.enhanced th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.biometric-table.enhanced th.sortable:hover {
+    background: rgba(0, 123, 255, 0.1);
+}
+
+.biometric-table.enhanced th.sortable i {
+    margin-left: 5px;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.biometric-table.enhanced th.sortable:hover i {
+    opacity: 1;
+}
+
+.biometric-table.enhanced td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: middle;
+}
+
+.biometric-table.enhanced tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.biometric-table.enhanced tbody tr:nth-child(even) {
+    background: rgba(248, 249, 250, 0.5);
+}
+
+.biometric-table.enhanced tbody tr:nth-child(even):hover {
+    background: #f8f9fa;
+}
+
+/* Employee data styling */
+.employee-code {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #007bff;
+    font-size: 12px;
+}
+
+.employee-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.last-activity {
+    font-size: 11px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Enhanced biometric status badges */
+.biometric-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.biometric-status.enrolled {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.biometric-status.none {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.biometric-status.partial {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.biometric-status.complete {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.biometric-status.pending {
+    background: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+.biometric-status i {
+    font-size: 10px;
+}
+
+/* Action buttons */
+.btn-actions {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.btn-actions .btn-sm {
+    padding: 4px 6px;
+    font-size: 11px;
+    min-width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Enhanced pagination */
+.biometric-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    flex-wrap: wrap;
+}
+
+.biometric-pagination .page-btn {
+    padding: 6px 10px;
+    border: 1px solid #dee2e6;
+    background: white;
+    color: #495057;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    min-width: 32px;
+    text-align: center;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.biometric-pagination .page-btn:hover {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.biometric-pagination .page-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: 600;
+}
+
+.biometric-pagination .page-btn:disabled {
+    background: #f8f9fa;
+    color: #999;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: #666;
+    margin: 0 10px;
+    white-space: nowrap;
+}
+
+/* Bulk actions */
+.bulk-actions {
+    background: #e7f3ff;
+    border: 1px solid #b3d7ff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.bulk-actions-header {
+    font-weight: 500;
+    color: #004085;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.bulk-actions-header::before {
+    content: '\f0c5';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    color: #007bff;
+}
+
+.bulk-actions-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.bulk-actions-buttons .btn-primary,
+.bulk-actions-buttons .btn-warning,
+.bulk-actions-buttons .btn-danger {
+    font-size: 13px;
+    padding: 8px 12px;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+input[type="checkbox"]:indeterminate {
+    background: #007bff;
+    border-color: #007bff;
+}
+
+/* Loading states */
+.loading-text {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+}
+
+.loading-text i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.no-data-text {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+
+.error-text {
+    text-align: center;
+    padding: 40px;
+    color: #dc3545;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .biometric-filters.enhanced {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .biometric-status-tabs {
+        flex-direction: column;
+    }
+    
+    .status-tab {
+        border-radius: 0;
+        min-width: auto;
+    }
+    
+    .biometric-filters.enhanced {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .biometric-filters.enhanced .filter-actions {
+        flex-direction: column;
+    }
+    
+    .biometric-summary-controls {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .bulk-actions-buttons {
+        justify-content: center;
+    }
+    
+    .biometric-pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .pagination-info {
+        width: 100%;
+        text-align: center;
+        margin: 10px 0 0 0;
+    }
+    
+    /* Hide some columns on mobile */
+    .biometric-table.enhanced th:nth-child(4),
+    .biometric-table.enhanced td:nth-child(4),
+    .biometric-table.enhanced th:nth-child(5),
+    .biometric-table.enhanced td:nth-child(5),
+    .biometric-table.enhanced th:nth-child(9),
+    .biometric-table.enhanced td:nth-child(9) {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .biometric-table.enhanced {
+        font-size: 11px;
+    }
+    
+    .biometric-table.enhanced th,
+    .biometric-table.enhanced td {
+        padding: 6px 4px;
+    }
+    
+    .btn-actions .btn-sm {
+        padding: 3px 5px;
+        min-width: 24px;
+        height: 24px;
+    }
+    
+    .biometric-status {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+}
