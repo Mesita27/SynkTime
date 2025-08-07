@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Grid,
   Paper,
   Typography,
   Box,
@@ -14,6 +13,7 @@ import {
   Chip,
   CircularProgress,
 } from '@mui/material';
+import Grid2 from '@mui/material/Grid2';
 import {
   People,
   AccessTime,
@@ -89,9 +89,9 @@ const DashboardPage: React.FC = () => {
       </Typography>
 
       {stats && (
-        <Grid container spacing={3}>
+        <Grid2 container spacing={3}>
           {/* Stats Cards */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid2 item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -112,9 +112,9 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid2>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid2 item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -135,9 +135,9 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid2>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid2 item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -158,9 +158,9 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid2>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid2 item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -181,10 +181,10 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid2>
 
           {/* Recent Activity */}
-          <Grid item xs={12} md={8}>
+          <Grid2 item xs={12} md={8}>
             <Card>
               <CardHeader title="Actividad Reciente" />
               <CardContent>
@@ -219,10 +219,10 @@ const DashboardPage: React.FC = () => {
                 </List>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid2>
 
           {/* Quick Actions */}
-          <Grid item xs={12} md={4}>
+          <Grid2 item xs={12} md={4}>
             <Card>
               <CardHeader title="Acceso Rápido" />
               <CardContent>
@@ -242,8 +242,8 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
-        </Grid>
+          </Grid2>
+        </Grid2>
       )}
     </Box>
   );

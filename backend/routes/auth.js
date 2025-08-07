@@ -32,7 +32,7 @@ router.post('/login', [
       SELECT 
         u.ID_USUARIO,
         u.USERNAME,
-        u.PASSWORD,
+        u.CONTRASENA as PASSWORD,
         u.NOMBRE_COMPLETO,
         u.EMAIL,
         u.ROL,
@@ -205,7 +205,7 @@ router.post('/change-password', [
 
     // Get current user password
     const users = await db.query(
-      'SELECT PASSWORD FROM usuario WHERE ID_USUARIO = ?',
+      'SELECT CONTRASENA as PASSWORD FROM usuario WHERE ID_USUARIO = ?',
       [req.user.id]
     );
 
@@ -230,7 +230,7 @@ router.post('/change-password', [
 
     // Update password
     await db.query(
-      'UPDATE usuario SET PASSWORD = ? WHERE ID_USUARIO = ?',
+      'UPDATE usuario SET CONTRASENA = ? WHERE ID_USUARIO = ?',
       [hashedPassword, req.user.id]
     );
 
