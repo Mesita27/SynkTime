@@ -785,6 +785,12 @@ function resetFingerprintEnrollment() {
     selectedFinger = null;
     fingerprintProgress = 0;
     
+    // Clear any running interval
+    if (window.fingerprintInterval) {
+        clearInterval(window.fingerprintInterval);
+        window.fingerprintInterval = null;
+    }
+    
     // Reset UI
     document.querySelectorAll('.finger').forEach(finger => {
         finger.classList.remove('selected');
@@ -834,12 +840,18 @@ function startFingerprintEnrollment() {
  * Simulate fingerprint enrollment
  */
 function simulateFingerprintEnrollment() {
-    const interval = setInterval(() => {
+    // Clear any existing interval to prevent multiple intervals
+    if (window.fingerprintInterval) {
+        clearInterval(window.fingerprintInterval);
+    }
+    
+    window.fingerprintInterval = setInterval(() => {
         fingerprintProgress += 20;
         updateFingerprintEnrollmentProgress();
         
         if (fingerprintProgress >= 100) {
-            clearInterval(interval);
+            clearInterval(window.fingerprintInterval);
+            window.fingerprintInterval = null;
             updateFingerprintEnrollmentInstruction('Inscripción completada');
             updateFingerprintEnrollmentStatus('Huella registrada exitosamente');
             document.getElementById('save_fingerprint_btn').style.display = 'inline-flex';

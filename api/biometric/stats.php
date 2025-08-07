@@ -24,7 +24,7 @@ try {
             CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             ACTIVO TINYINT(1) DEFAULT 1,
-            FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO),
+            FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO),
             UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
         )
     ";
@@ -64,7 +64,7 @@ try {
     // Get total active employees count
     $stmt = $conn->prepare("
         SELECT COUNT(*) as count 
-        FROM empleados 
+        FROM EMPLEADO 
         WHERE ACTIVO = 1
     ");
     $stmt->execute();
@@ -73,7 +73,7 @@ try {
     // Calculate pending enrollment (employees without any biometric data)
     $stmt = $conn->prepare("
         SELECT COUNT(*) as count
-        FROM empleados e
+        FROM EMPLEADO e
         LEFT JOIN biometric_data bd ON e.ID_EMPLEADO = bd.ID_EMPLEADO AND bd.ACTIVO = 1
         WHERE e.ACTIVO = 1 AND bd.ID_EMPLEADO IS NULL
     ");
