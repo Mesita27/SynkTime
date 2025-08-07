@@ -876,10 +876,17 @@ function updateFingerprintEnrollmentStatus(text) {
 window.saveFingerprintEnrollment = function() {
     if (!selectedEmployee || !selectedFinger) return;
     
+    const saveBtn = document.getElementById('save_fingerprint_btn');
+    const originalText = saveBtn.innerHTML;
+    
+    // Show loading state
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    saveBtn.disabled = true;
+    
     const formData = new URLSearchParams({
         employee_id: selectedEmployee.id,
         finger_type: selectedFinger,
-        fingerprint_data: 'simulated_fingerprint_data' // In real implementation, this would be actual biometric data
+        fingerprint_data: 'simulated_fingerprint_data_' + Date.now() // In real implementation, this would be actual biometric data
     });
     
     fetch('api/biometric/enroll-fingerprint.php', {
@@ -889,16 +896,39 @@ window.saveFingerprintEnrollment = function() {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            showNotification('Huella registrada exitosamente', 'success');
-            closeFingerprintEnrollmentModal();
-            loadEmployeesForEnrollment(); // Refresh employee list
+            showNotification(`Huella dactilar registrada exitosamente para ${selectedEmployee.name}`, 'success');
+            
+            // Update modal step
+            if (typeof updateModalStep === 'function') {
+                updateModalStep('Inscripción Completada');
+            }
+            
+            // Close modal after short delay
+            setTimeout(() => {
+                closeFingerprintEnrollmentModal();
+                closeBiometricEnrollmentModal();
+                
+                // Refresh biometric data if on enrollment page
+                if (typeof refreshBiometricData === 'function') {
+                    refreshBiometricData();
+                }
+                
+                // Refresh employee list if function exists
+                if (typeof loadEmployeesForEnrollment === 'function') {
+                    loadEmployeesForEnrollment();
+                }
+            }, 2000);
         } else {
-            showNotification('Error: ' + (res.message || 'No se pudo registrar la huella.'), 'error');
+            throw new Error(res.message || 'No se pudo registrar la huella dactilar');
         }
     })
     .catch(error => {
         console.error('Error saving fingerprint:', error);
-        showNotification('Error al comunicarse con el servidor.', 'error');
+        showNotification('Error: ' + error.message, 'error');
+    })
+    .finally(() => {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
     });
 };
 
@@ -1084,6 +1114,13 @@ function updateEnrollmentSteps() {
 window.saveFacialEnrollment = function() {
     if (!selectedEmployee || facialCaptureCount < maxFacialCaptures) return;
     
+    const saveBtn = document.getElementById('save_facial_btn');
+    const originalText = saveBtn.innerHTML;
+    
+    // Show loading state
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    saveBtn.disabled = true;
+    
     // Collect all captured images
     const capturedImages = [];
     document.querySelectorAll('#facial_captures img').forEach(img => {
@@ -1102,16 +1139,39 @@ window.saveFacialEnrollment = function() {
     .then(r => r.json())
     .then(res => {
         if (res.success) {
-            showNotification('Patrón facial registrado exitosamente', 'success');
-            closeFacialEnrollmentModal();
-            loadEmployeesForEnrollment(); // Refresh employee list
+            showNotification(`Patrón facial registrado exitosamente para ${selectedEmployee.name}`, 'success');
+            
+            // Update modal step
+            if (typeof updateModalStep === 'function') {
+                updateModalStep('Inscripción Completada');
+            }
+            
+            // Close modal after short delay
+            setTimeout(() => {
+                closeFacialEnrollmentModal();
+                closeBiometricEnrollmentModal();
+                
+                // Refresh biometric data if on enrollment page
+                if (typeof refreshBiometricData === 'function') {
+                    refreshBiometricData();
+                }
+                
+                // Refresh employee list if function exists
+                if (typeof loadEmployeesForEnrollment === 'function') {
+                    loadEmployeesForEnrollment();
+                }
+            }, 2000);
         } else {
-            showNotification('Error: ' + (res.message || 'No se pudo registrar el patrón facial.'), 'error');
+            throw new Error(res.message || 'No se pudo registrar el patrón facial');
         }
     })
     .catch(error => {
         console.error('Error saving facial data:', error);
-        showNotification('Error al comunicarse con el servidor.', 'error');
+        showNotification('Error: ' + error.message, 'error');
+    })
+    .finally(() => {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
     });
 };
 

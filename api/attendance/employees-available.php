@@ -12,6 +12,28 @@ date_default_timezone_set('America/Bogota');
 $sede = $_GET['sede'] ?? '';
 $establecimiento = $_GET['establecimiento'] ?? '';
 $codigo = $_GET['codigo'] ?? '';
+$biometric_filter = $_GET['biometric_filter'] ?? 'all'; // 'all', 'partial', 'none', 'complete'
+
+// Create biometric_data table if it doesn't exist
+try {
+    $create_table_sql = "
+        CREATE TABLE IF NOT EXISTS biometric_data (
+            ID INT AUTO_INCREMENT PRIMARY KEY,
+            ID_EMPLEADO INT NOT NULL,
+            BIOMETRIC_TYPE ENUM('fingerprint', 'facial') NOT NULL,
+            FINGER_TYPE VARCHAR(20),
+            BIOMETRIC_DATA LONGTEXT,
+            CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            ACTIVO TINYINT(1) DEFAULT 1,
+            FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO),
+            UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
+        )
+    ";
+    $conn->exec($create_table_sql);
+} catch (Exception $e) {
+    // Table may already exist, continue
+}
 
 // Construir la consulta base para obtener todos los empleados activos
 $where = ['e.ACTIVO = "S"'];
@@ -32,7 +54,7 @@ if ($codigo) {
 
 $whereClause = implode(' AND ', $where);
 
-// Consulta para obtener todos los empleados (no filtrar por asistencia)
+// Consulta para obtener empleados con información biométrica
 $sql = "
     SELECT 
         e.ID_EMPLEADO,
@@ -40,13 +62,30 @@ $sql = "
         e.APELLIDO,
         e.ID_ESTABLECIMIENTO,
         est.NOMBRE AS ESTABLECIMIENTO,
-        s.NOMBRE AS SEDE
+        s.NOMBRE AS SEDE,
+        MAX(CASE WHEN bd.BIOMETRIC_TYPE = 'fingerprint' AND bd.ACTIVO = 1 THEN 1 ELSE 0 END) as has_fingerprint,
+        MAX(CASE WHEN bd.BIOMETRIC_TYPE = 'facial' AND bd.ACTIVO = 1 THEN 1 ELSE 0 END) as has_facial
     FROM EMPLEADO e
     JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
     JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+    LEFT JOIN biometric_data bd ON e.ID_EMPLEADO = bd.ID_EMPLEADO
     WHERE $whereClause
-    ORDER BY e.APELLIDO, e.NOMBRE
+    GROUP BY e.ID_EMPLEADO, e.NOMBRE, e.APELLIDO, e.ID_ESTABLECIMIENTO, est.NOMBRE, s.NOMBRE
 ";
+
+// Apply biometric filter if specified
+if ($biometric_filter === 'partial') {
+    // Only employees with partial biometric data (only fingerprint OR facial, not both)
+    $sql .= " HAVING (has_fingerprint = 1 AND has_facial = 0) OR (has_fingerprint = 0 AND has_facial = 1)";
+} elseif ($biometric_filter === 'none') {
+    // Only employees without any biometric data
+    $sql .= " HAVING has_fingerprint = 0 AND has_facial = 0";
+} elseif ($biometric_filter === 'complete') {
+    // Only employees with complete biometric data (both fingerprint AND facial)
+    $sql .= " HAVING has_fingerprint = 1 AND has_facial = 1";
+}
+
+$sql .= " ORDER BY e.APELLIDO, e.NOMBRE";
 
 $stmt = $conn->prepare($sql);
 $stmt->execute($params);
@@ -145,9 +184,20 @@ foreach ($empleados as $empleado) {
         ];
     }
     
-    // Agregar información de horarios disponibles
+    // Agregar información de horarios disponibles y biometric status
     $empleado['HORARIOS'] = $horarios_disponibles;
     $empleado['TIENE_HORARIOS_DISPONIBLES'] = $tiene_horarios_disponibles;
+    $empleado['HAS_FINGERPRINT'] = (bool) $empleado['has_fingerprint'];
+    $empleado['HAS_FACIAL'] = (bool) $empleado['has_facial'];
+    
+    // Determine biometric status
+    if ($empleado['has_fingerprint'] && $empleado['has_facial']) {
+        $empleado['BIOMETRIC_STATUS'] = 'complete';
+    } elseif ($empleado['has_fingerprint'] || $empleado['has_facial']) {
+        $empleado['BIOMETRIC_STATUS'] = 'partial';
+    } else {
+        $empleado['BIOMETRIC_STATUS'] = 'none';
+    }
     
     $result[] = $empleado;
 }
@@ -158,7 +208,8 @@ echo json_encode([
     'filter_info' => [
         'fecha' => $fecha_actual,
         'dia_semana' => $dia_semana ?? date('N'),
-        'total_empleados' => count($result)
+        'total_empleados' => count($result),
+        'biometric_filter' => $biometric_filter
     ]
 ]);
 ?>

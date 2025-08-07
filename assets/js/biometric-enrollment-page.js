@@ -35,6 +35,31 @@ function initializeBiometricEnrollmentPage() {
     console.log('Initializing biometric enrollment page...');
     loadSedesForFilters();
     loadEstablecimientosForFilters();
+    loadSedesForEnrollment();
+    loadEstablecimientosForEnrollment();
+}
+
+/**
+ * Load sedes for enrollment modal
+ */
+async function loadSedesForEnrollment() {
+    try {
+        const response = await fetch('api/get-sedes.php');
+        const data = await response.json();
+        const sedeSelect = document.getElementById('enrollment_sede');
+        
+        if (sedeSelect) {
+            sedeSelect.innerHTML = '<option value="">Todas las sedes</option>';
+            
+            if (data.sedes) {
+                data.sedes.forEach(sede => {
+                    sedeSelect.innerHTML += `<option value="${sede.ID_SEDE}">${sede.NOMBRE}</option>`;
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error loading sedes for enrollment:', error);
+    }
 }
 
 /**
@@ -70,6 +95,84 @@ function setupEventListeners() {
     const btnBiometricReport = document.getElementById('btnBiometricReport');
     if (btnBiometricReport) {
         btnBiometricReport.onclick = generateBiometricReport;
+    }
+    
+    // Setup enrollment modal event listeners
+    setupEnrollmentModalListeners();
+}
+
+/**
+ * Setup enrollment modal event listeners
+ */
+function setupEnrollmentModalListeners() {
+    // Search button in enrollment modal
+    const btnBuscarEnrollment = document.getElementById('btnBuscarEnrollment');
+    if (btnBuscarEnrollment) {
+        btnBuscarEnrollment.onclick = loadEmployeesForEnrollment;
+    }
+    
+    // Clear button in enrollment modal
+    const btnLimpiarEnrollment = document.getElementById('btnLimpiarEnrollment');
+    if (btnLimpiarEnrollment) {
+        btnLimpiarEnrollment.onclick = function() {
+            document.getElementById('enrollment_sede').value = '';
+            document.getElementById('enrollment_establecimiento').value = '';
+            document.getElementById('enrollment_codigo').value = '';
+            loadEmployeesForEnrollment();
+        };
+    }
+    
+    // Sede change in enrollment modal
+    const enrollmentSede = document.getElementById('enrollment_sede');
+    if (enrollmentSede) {
+        enrollmentSede.onchange = function() {
+            loadEstablecimientosForEnrollment();
+            loadEmployeesForEnrollment();
+        };
+    }
+    
+    // Establecimiento change in enrollment modal
+    const enrollmentEstablecimiento = document.getElementById('enrollment_establecimiento');
+    if (enrollmentEstablecimiento) {
+        enrollmentEstablecimiento.onchange = loadEmployeesForEnrollment;
+    }
+    
+    // Enter key in codigo input
+    const enrollmentCodigo = document.getElementById('enrollment_codigo');
+    if (enrollmentCodigo) {
+        enrollmentCodigo.onkeypress = function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                loadEmployeesForEnrollment();
+            }
+        };
+    }
+}
+
+/**
+ * Load establecimientos for enrollment modal
+ */
+async function loadEstablecimientosForEnrollment() {
+    try {
+        const sedeId = document.getElementById('enrollment_sede').value;
+        let url = 'api/get-establecimientos.php';
+        if (sedeId) {
+            url += `?sede_id=${sedeId}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        const establecimientoSelect = document.getElementById('enrollment_establecimiento');
+        
+        establecimientoSelect.innerHTML = '<option value="">Todos los establecimientos</option>';
+        
+        if (data.establecimientos) {
+            data.establecimientos.forEach(establecimiento => {
+                establecimientoSelect.innerHTML += `<option value="${establecimiento.ID_ESTABLECIMIENTO}">${establecimiento.NOMBRE}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading establecimientos for enrollment:', error);
     }
 }
 
@@ -349,23 +452,31 @@ function clearBiometricFilters() {
  * Select employee for enrollment from summary table
  */
 window.selectEmployeeForEnrollment = function(employeeId, employeeName) {
-    // Open the biometric enrollment modal and auto-select the employee
-    openBiometricEnrollmentModal();
+    // Set selected employee globally for biometric.js
+    selectedEmployee = { id: employeeId, name: employeeName };
     
-    // Wait for modal to be fully loaded before selecting employee
-    setTimeout(() => {
-        if (typeof window.selectEmployeeForEnrollment !== 'undefined') {
-            // Auto-fill the employee search and trigger selection
-            const codigoInput = document.getElementById('enrollment_codigo');
-            if (codigoInput) {
-                codigoInput.value = employeeId;
-                // Trigger search to load the specific employee
-                if (typeof loadEmployeesForEnrollment === 'function') {
-                    loadEmployeesForEnrollment();
-                }
-            }
+    // Update modal step
+    if (typeof updateModalStep === 'function') {
+        updateModalStep('Empleado Seleccionado');
+    }
+    
+    // Show the biometric enrollment section
+    const enrollmentSection = document.getElementById('biometric_enrollment_section');
+    if (enrollmentSection) {
+        enrollmentSection.style.display = 'block';
+        
+        // Update selected employee info
+        document.getElementById('selected_employee_name').textContent = employeeName;
+        document.getElementById('selected_employee_code').textContent = employeeId;
+        
+        // Initialize devices for enrollment
+        if (typeof detectBiometricDevices === 'function') {
+            detectBiometricDevices();
         }
-    }, 500);
+    }
+    
+    // Scroll to enrollment section
+    enrollmentSection.scrollIntoView({ behavior: 'smooth' });
 };
 
 // ===================================================================
@@ -399,6 +510,117 @@ function refreshBiometricData() {
     loadBiometricStats();
     loadBiometricSummary();
 }
+
+/**
+ * Load employees for enrollment
+ */
+async function loadEmployeesForEnrollment() {
+    const tbody = document.getElementById('enrollmentTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-text"><i class="fas fa-spinner fa-spin"></i> Cargando empleados...</td></tr>';
+    
+    try {
+        const sede = document.getElementById('enrollment_sede')?.value || '';
+        const establecimiento = document.getElementById('enrollment_establecimiento')?.value || '';
+        const codigo = document.getElementById('enrollment_codigo')?.value?.trim() || '';
+        
+        const params = new URLSearchParams();
+        if (sede) params.append('sede', sede);
+        if (establecimiento) params.append('establecimiento', establecimiento);
+        if (codigo) params.append('codigo', codigo);
+        params.append('biometric_filter', 'all'); // Show all employees for enrollment
+        
+        const response = await fetch(`api/attendance/employees-available.php?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderEnrollmentEmployeeTable(data.data);
+        } else {
+            throw new Error(data.message || 'Error loading employees');
+        }
+    } catch (error) {
+        console.error('Error loading employees for enrollment:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="error-text">Error al cargar empleados. Intente de nuevo.</td></tr>';
+    }
+}
+
+/**
+ * Render employee table for enrollment
+ */
+function renderEnrollmentEmployeeTable(employees) {
+    const tbody = document.getElementById('enrollmentTableBody');
+    tbody.innerHTML = '';
+    
+    if (!employees || employees.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data-text">No se encontraron empleados</td></tr>';
+        return;
+    }
+    
+    employees.forEach(emp => {
+        const biometricStatus = getBiometricStatusForEnrollment(emp.BIOMETRIC_STATUS, emp.HAS_FINGERPRINT, emp.HAS_FACIAL);
+        
+        tbody.innerHTML += `
+            <tr>
+                <td>${emp.ID_EMPLEADO}</td>
+                <td>${emp.NOMBRE} ${emp.APELLIDO}</td>
+                <td>${emp.ESTABLECIMIENTO || '-'}</td>
+                <td>${emp.SEDE || '-'}</td>
+                <td>${biometricStatus}</td>
+                <td>
+                    <button type="button" class="btn-primary btn-sm" 
+                            onclick="selectEmployeeForEnrollment(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')"
+                            title="Seleccionar para inscripción">
+                        <i class="fas fa-user-plus"></i> Seleccionar
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+/**
+ * Get biometric status display for enrollment table
+ */
+function getBiometricStatusForEnrollment(status, hasFingerprint, hasFacial) {
+    const icons = {
+        fingerprint: hasFingerprint ? '<i class="fas fa-fingerprint text-success"></i>' : '<i class="fas fa-fingerprint text-muted"></i>',
+        facial: hasFacial ? '<i class="fas fa-user-circle text-success"></i>' : '<i class="fas fa-user-circle text-muted"></i>'
+    };
+    
+    let statusClass = '';
+    let statusText = '';
+    
+    switch (status) {
+        case 'complete':
+            statusClass = 'badge-success';
+            statusText = 'Completo';
+            break;
+        case 'partial':
+            statusClass = 'badge-warning';
+            statusText = 'Parcial';
+            break;
+        case 'none':
+            statusClass = 'badge-danger';
+            statusText = 'Sin registrar';
+            break;
+        default:
+            statusClass = 'badge-secondary';
+            statusText = 'Desconocido';
+    }
+    
+    return `
+        <div class="biometric-status-cell">
+            <div class="biometric-icons">
+                ${icons.fingerprint} ${icons.facial}
+            </div>
+            <div class="status-badge ${statusClass}">${statusText}</div>
+        </div>
+    `;
+}
+
+// Export the function for use in biometric.js
+window.loadEmployeesForEnrollment = loadEmployeesForEnrollment;
 
 // Auto-refresh every 5 minutes
 setInterval(refreshBiometricData, 300000);
