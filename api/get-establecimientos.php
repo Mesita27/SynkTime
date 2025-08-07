@@ -29,7 +29,7 @@ try {
             ID_SEDE
         FROM ESTABLECIMIENTO 
         WHERE ID_SEDE = :sedeId 
-        AND ESTADO = 'A'
+        AND ACTIVO = 'S'
         ORDER BY NOMBRE
     ");
     
