@@ -1,0 +1,316 @@
+/* =================================================================== */
+/* BIOMETRIC OPTIONS MODAL STYLES */
+/* Enhanced biometric enrollment with options selection */
+/* =================================================================== */
+
+/* Employee summary card */
+.selected-employee-summary {
+    margin-bottom: 25px;
+}
+
+.employee-card {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.employee-avatar {
+    width: 60px;
+    height: 60px;
+    background: #007bff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 20px;
+    color: white;
+    font-size: 24px;
+}
+
+.employee-details h4 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.employee-details p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+/* Biometric type selection */
+.biometric-type-selection {
+    margin-bottom: 25px;
+}
+
+.biometric-type-selection h4 {
+    color: #333;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+}
+
+.biometric-type-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.biometric-type-card {
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.biometric-type-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.biometric-type-card.recommended {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fff9 100%);
+}
+
+.biometric-type-card.recommended:hover {
+    border-color: #28a745;
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.2);
+}
+
+.recommended-badge {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    background: #28a745;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 0 12px 0 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.recommended-badge i {
+    margin-right: 4px;
+}
+
+.type-icon {
+    text-align: center;
+    margin-bottom: 15px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.type-icon.fingerprint-icon {
+    color: #6f42c1;
+    font-size: 36px;
+}
+
+.type-icon.facial-icon {
+    color: #fd7e14;
+    font-size: 36px;
+}
+
+.type-icon.combined-icon {
+    color: #28a745;
+    font-size: 28px;
+}
+
+.type-content h5 {
+    margin: 0 0 8px 0;
+    color: #333;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.type-content p {
+    margin: 0 0 15px 0;
+    color: #666;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.type-features {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #495057;
+}
+
+.feature i {
+    color: #28a745;
+    font-size: 10px;
+    width: 12px;
+}
+
+.device-status-indicator {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.device-status-indicator i {
+    font-size: 16px;
+}
+
+.device-status-indicator .fa-spinner {
+    color: #6c757d;
+}
+
+.device-status-indicator .fa-check-circle.available {
+    color: #28a745;
+}
+
+.device-status-indicator .fa-times-circle.unavailable {
+    color: #dc3545;
+}
+
+/* Enrollment notes */
+.enrollment-notes {
+    margin-top: 25px;
+}
+
+.note-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.note-card i {
+    color: #856404;
+    font-size: 18px;
+    margin-top: 2px;
+}
+
+.note-content h6 {
+    margin: 0 0 5px 0;
+    color: #856404;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.note-content p {
+    margin: 0;
+    color: #856404;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Active state for selected biometric type */
+.biometric-type-card.selected {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.biometric-type-card.selected .type-icon {
+    color: #007bff;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .biometric-type-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .employee-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .employee-avatar {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .biometric-type-card {
+        padding: 15px;
+    }
+    
+    .type-icon {
+        height: 50px;
+    }
+    
+    .type-icon.fingerprint-icon,
+    .type-icon.facial-icon {
+        font-size: 30px;
+    }
+    
+    .type-icon.combined-icon {
+        font-size: 24px;
+    }
+}
+
+/* Animation for modal entrance */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+#biometricOptionsModal.show .modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Hover effects for better UX */
+.biometric-type-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.05) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.biometric-type-card:hover::before {
+    opacity: 1;
+}
+
+.biometric-type-card.recommended::before {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, transparent 100%);
+}

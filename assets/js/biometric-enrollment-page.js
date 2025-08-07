@@ -14,8 +14,16 @@ let biometricStats = {
 let currentFilters = {
     sede: '',
     establecimiento: '',
-    status: ''
+    status: '',
+    search_code: '',
+    search_name: ''
 };
+
+let currentBiometricTab = 'all';
+let biometricPage = 1;
+let biometricLimit = 25;
+let biometricSort = { field: '', direction: 'asc' };
+let selectedEmployees = new Set();
 
 // ===================================================================
 // 1. INITIALIZATION
@@ -58,11 +66,57 @@ function setupEventListeners() {
         btnClearFilters.onclick = clearBiometricFilters;
     }
 
+    // Enhanced search inputs with AJAX
+    const searchCodeInput = document.getElementById('filter_search_code');
+    if (searchCodeInput) {
+        searchCodeInput.addEventListener('input', debounce(applyBiometricFilters, 500));
+        searchCodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyBiometricFilters();
+            }
+        });
+    }
+
+    const searchNameInput = document.getElementById('filter_search_name');
+    if (searchNameInput) {
+        searchNameInput.addEventListener('input', debounce(applyBiometricFilters, 500));
+        searchNameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyBiometricFilters();
+            }
+        });
+    }
+
     // Sede change event
     const filterSede = document.getElementById('filter_sede');
     if (filterSede) {
         filterSede.onchange = function() {
             loadEstablecimientosForFilters();
+            applyBiometricFilters();
+        };
+    }
+
+    // Establecimiento change event
+    const filterEstablecimiento = document.getElementById('filter_establecimiento');
+    if (filterEstablecimiento) {
+        filterEstablecimiento.onchange = applyBiometricFilters;
+    }
+
+    // Status filter change event
+    const filterStatus = document.getElementById('filter_status');
+    if (filterStatus) {
+        filterStatus.onchange = applyBiometricFilters;
+    }
+
+    // Page size change event
+    const pageSizeSelect = document.getElementById('biometric_page_size');
+    if (pageSizeSelect) {
+        pageSizeSelect.onchange = function() {
+            biometricLimit = parseInt(this.value);
+            biometricPage = 1;
+            loadBiometricSummary();
         };
     }
 
@@ -70,6 +124,12 @@ function setupEventListeners() {
     const btnBiometricReport = document.getElementById('btnBiometricReport');
     if (btnBiometricReport) {
         btnBiometricReport.onclick = generateBiometricReport;
+    }
+
+    // Export button
+    const btnExportBiometric = document.getElementById('btnExportBiometric');
+    if (btnExportBiometric) {
+        btnExportBiometric.onclick = exportBiometricData;
     }
 }
 
@@ -253,41 +313,34 @@ function renderBiometricSummaryTable(data) {
     tbody.innerHTML = '';
     
     if (!data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data-text">No se encontraron empleados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data-text">No se encontraron empleados</td></tr>';
         return;
     }
     
     data.forEach(employee => {
-        const fingerprintStatus = employee.has_fingerprint ? 
-            '<span class="biometric-status enrolled"><i class="fas fa-check"></i> Registrado</span>' :
-            '<span class="biometric-status none"><i class="fas fa-times"></i> No registrado</span>';
-            
-        const facialStatus = employee.has_facial ? 
-            '<span class="biometric-status enrolled"><i class="fas fa-check"></i> Registrado</span>' :
-            '<span class="biometric-status none"><i class="fas fa-times"></i> No registrado</span>';
-            
-        let generalStatus;
-        if (employee.has_fingerprint && employee.has_facial) {
-            generalStatus = '<span class="biometric-status enrolled">Completo</span>';
-        } else if (employee.has_fingerprint || employee.has_facial) {
-            generalStatus = '<span class="biometric-status partial">Parcial</span>';
-        } else {
-            generalStatus = '<span class="biometric-status none">Sin registrar</span>';
-        }
+        const fingerprintStatus = getBiometricStatusBadge(employee.has_fingerprint, 'huella');
+        const facialStatus = getBiometricStatusBadge(employee.has_facial, 'facial');
+        const generalStatus = getGeneralBiometricStatus(employee);
+        const lastActivity = employee.last_activity || 'No registrada';
         
         tbody.innerHTML += `
-            <tr>
-                <td>${employee.ID_EMPLEADO}</td>
-                <td>${employee.NOMBRE} ${employee.APELLIDO}</td>
+            <tr class="employee-row" data-employee-id="${employee.ID_EMPLEADO}">
+                <td>
+                    <input type="checkbox" class="employee-checkbox" value="${employee.ID_EMPLEADO}" 
+                           onchange="toggleEmployeeSelection(this)">
+                </td>
+                <td class="employee-code">${employee.ID_EMPLEADO}</td>
+                <td class="employee-name">${employee.NOMBRE} ${employee.APELLIDO}</td>
                 <td>${employee.ESTABLECIMIENTO || '-'}</td>
                 <td>${employee.SEDE || '-'}</td>
                 <td>${fingerprintStatus}</td>
                 <td>${facialStatus}</td>
                 <td>${generalStatus}</td>
+                <td class="last-activity">${lastActivity}</td>
                 <td>
                     <div class="btn-actions">
                         <button type="button" class="btn-primary btn-sm" 
-                                onclick="selectEmployeeForEnrollment(${employee.ID_EMPLEADO}, '${employee.NOMBRE} ${employee.APELLIDO}')"
+                                onclick="openBiometricOptionsModal(${employee.ID_EMPLEADO}, '${employee.NOMBRE} ${employee.APELLIDO}')"
                                 title="Inscribir datos biométricos">
                             <i class="fas fa-fingerprint"></i>
                         </button>
@@ -296,11 +349,47 @@ function renderBiometricSummaryTable(data) {
                                 title="Ver historial biométrico">
                             <i class="fas fa-history"></i>
                         </button>
+                        <button type="button" class="btn-info btn-sm" 
+                                onclick="viewEmployeeDetails(${employee.ID_EMPLEADO})"
+                                title="Ver detalles del empleado">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </td>
             </tr>
         `;
     });
+    
+    // Update selection state
+    updateBulkActionsVisibility();
+}
+
+/**
+ * Get biometric status badge
+ */
+function getBiometricStatusBadge(hasData, type) {
+    if (hasData) {
+        return `<span class="biometric-status enrolled">
+                    <i class="fas fa-check-circle"></i> Registrado
+                </span>`;
+    } else {
+        return `<span class="biometric-status none">
+                    <i class="fas fa-times-circle"></i> No registrado
+                </span>`;
+    }
+}
+
+/**
+ * Get general biometric status
+ */
+function getGeneralBiometricStatus(employee) {
+    if (employee.has_fingerprint && employee.has_facial) {
+        return '<span class="biometric-status complete"><i class="fas fa-shield-alt"></i> Completo</span>';
+    } else if (employee.has_fingerprint || employee.has_facial) {
+        return '<span class="biometric-status partial"><i class="fas fa-exclamation-triangle"></i> Parcial</span>';
+    } else {
+        return '<span class="biometric-status pending"><i class="fas fa-clock"></i> Pendiente</span>';
+    }
 }
 
 // ===================================================================
@@ -314,7 +403,9 @@ function applyBiometricFilters() {
     currentFilters = {
         sede: document.getElementById('filter_sede').value,
         establecimiento: document.getElementById('filter_establecimiento').value,
-        status: document.getElementById('filter_status').value
+        status: document.getElementById('filter_status').value,
+        search_code: document.getElementById('filter_search_code').value.trim(),
+        search_name: document.getElementById('filter_search_name').value.trim()
     };
     
     // Remove empty filters
@@ -323,6 +414,9 @@ function applyBiometricFilters() {
             delete currentFilters[key];
         }
     });
+    
+    // Reset to first page when applying filters
+    biometricPage = 1;
     
     loadBiometricSummary();
 }
@@ -334,11 +428,205 @@ function clearBiometricFilters() {
     document.getElementById('filter_sede').value = '';
     document.getElementById('filter_establecimiento').value = '';
     document.getElementById('filter_status').value = '';
+    document.getElementById('filter_search_code').value = '';
+    document.getElementById('filter_search_name').value = '';
     
     currentFilters = {};
+    biometricPage = 1;
     
     loadEstablecimientosForFilters();
     loadBiometricSummary();
+}
+
+// ===================================================================
+// 8. TAB MANAGEMENT
+// ===================================================================
+
+/**
+ * Switch biometric status tab
+ */
+window.switchBiometricStatusTab = function(tabType) {
+    // Update active tab
+    document.querySelectorAll('.status-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelector(`[data-tab="${tabType}"]`).classList.add('active');
+    
+    currentBiometricTab = tabType;
+    biometricPage = 1;
+    
+    // Update filters based on tab
+    const statusFilter = document.getElementById('filter_status');
+    switch (tabType) {
+        case 'enrolled':
+            statusFilter.value = 'complete';
+            break;
+        case 'partial':
+            statusFilter.value = 'fingerprint_only'; // Could be either fingerprint_only or facial_only
+            break;
+        case 'pending':
+            statusFilter.value = 'none';
+            break;
+        default:
+            statusFilter.value = '';
+    }
+    
+    applyBiometricFilters();
+};
+
+// ===================================================================
+// 9. SORTING AND PAGINATION
+// ===================================================================
+
+/**
+ * Sort biometric table
+ */
+window.sortBiometricTable = function(field) {
+    if (biometricSort.field === field) {
+        biometricSort.direction = biometricSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        biometricSort.field = field;
+        biometricSort.direction = 'asc';
+    }
+    
+    // Update sort indicators
+    document.querySelectorAll('.sortable i').forEach(icon => {
+        icon.className = 'fas fa-sort';
+    });
+    
+    const sortIcon = document.querySelector(`[onclick="sortBiometricTable('${field}')"] i`);
+    if (sortIcon) {
+        sortIcon.className = `fas fa-sort-${biometricSort.direction === 'asc' ? 'up' : 'down'}`;
+    }
+    
+    loadBiometricSummary();
+};
+
+/**
+ * Change biometric page
+ */
+window.changeBiometricPage = function(page) {
+    biometricPage = page;
+    loadBiometricSummary();
+};
+
+// ===================================================================
+// 10. BULK ACTIONS AND SELECTION
+// ===================================================================
+
+/**
+ * Toggle select all employees
+ */
+window.toggleSelectAllEmployees = function() {
+    const selectAllCheckbox = document.getElementById('select_all_employees');
+    const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
+    
+    employeeCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+        toggleEmployeeSelection(checkbox);
+    });
+};
+
+/**
+ * Toggle employee selection
+ */
+window.toggleEmployeeSelection = function(checkbox) {
+    const employeeId = checkbox.value;
+    
+    if (checkbox.checked) {
+        selectedEmployees.add(employeeId);
+    } else {
+        selectedEmployees.delete(employeeId);
+    }
+    
+    updateBulkActionsVisibility();
+    updateSelectAllState();
+};
+
+/**
+ * Update bulk actions visibility
+ */
+function updateBulkActionsVisibility() {
+    const bulkActions = document.getElementById('bulk_actions');
+    const selectedCount = document.getElementById('selected_count');
+    
+    if (selectedEmployees.size > 0) {
+        bulkActions.style.display = 'block';
+        selectedCount.textContent = selectedEmployees.size;
+    } else {
+        bulkActions.style.display = 'none';
+    }
+}
+
+/**
+ * Update select all checkbox state
+ */
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById('select_all_employees');
+    const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
+    const checkedCount = document.querySelectorAll('.employee-checkbox:checked').length;
+    
+    if (checkedCount === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkedCount === employeeCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+// ===================================================================
+// 11. BULK ACTIONS
+// ===================================================================
+
+/**
+ * Bulk enroll biometric
+ */
+window.bulkEnrollBiometric = function() {
+    if (selectedEmployees.size === 0) return;
+    
+    const employeeIds = Array.from(selectedEmployees);
+    showNotification(`Inscripción masiva iniciada para ${employeeIds.length} empleados`, 'info');
+    // Implementation would depend on requirements
+};
+
+/**
+ * Bulk export selected employees
+ */
+window.bulkExportSelected = function() {
+    if (selectedEmployees.size === 0) return;
+    
+    const employeeIds = Array.from(selectedEmployees);
+    showNotification(`Exportando ${employeeIds.length} empleados seleccionados`, 'info');
+    // Implementation would generate and download report
+};
+
+/**
+ * Bulk reset biometric data
+ */
+window.bulkResetBiometric = function() {
+    if (selectedEmployees.size === 0) return;
+    
+    if (confirm(`¿Está seguro de resetear los datos biométricos de ${selectedEmployees.size} empleados?`)) {
+        showNotification('Función de reseteo masivo (por implementar)', 'warning');
+    }
+};
+
+// ===================================================================
+// 12. EXPORT AND REPORTING
+// ===================================================================
+
+/**
+ * Export biometric data
+ */
+function exportBiometricData() {
+    const params = new URLSearchParams(currentFilters);
+    params.append('export', 'true');
+    
+    showNotification('Generando archivo de exportación...', 'info');
+    
+    // This would typically trigger a file download
+    window.open(`api/biometric/export.php?${params.toString()}`, '_blank');
 }
 
 // ===================================================================
@@ -402,3 +690,22 @@ function refreshBiometricData() {
 
 // Auto-refresh every 5 minutes
 setInterval(refreshBiometricData, 300000);
+
+// ===================================================================
+// 9. UTILITY FUNCTIONS
+// ===================================================================
+
+/**
+ * Debounce function to limit API calls during typing
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}

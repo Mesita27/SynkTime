@@ -1,0 +1,396 @@
+/* =================================================================== */
+/* EMPLOYEE NAVIGATION MODAL STYLES */
+/* Enhanced photo modal with employee navigation and AJAX search */
+/* =================================================================== */
+
+/* Navigation tabs */
+.employee-nav-tabs {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 20px;
+    background: #f8f9fa;
+    border-radius: 6px 6px 0 0;
+    padding: 0;
+}
+
+.nav-tab {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 6px 6px 0 0;
+}
+
+.nav-tab:hover {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+}
+
+.nav-tab.active {
+    background: #007bff;
+    color: white;
+    border-bottom: 2px solid #0056b3;
+}
+
+.nav-tab i {
+    font-size: 14px;
+}
+
+/* Tab content */
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Search filters */
+.employee-search-filters {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.search-form .filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+}
+
+.filter-actions .btn-primary,
+.filter-actions .btn-secondary {
+    min-width: 100px;
+    height: 40px;
+}
+
+/* Employee navigation table */
+.employee-navigation-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.employee-navigation-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.employee-navigation-table thead {
+    background: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.employee-navigation-table th,
+.employee-navigation-table td {
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.employee-navigation-table th {
+    font-weight: 600;
+    color: #495057;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.employee-navigation-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.employee-navigation-table .employee-code {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.employee-navigation-table .employee-name {
+    font-weight: 500;
+    color: #333;
+}
+
+.employee-navigation-table .schedule-info {
+    font-size: 12px;
+    color: #666;
+    max-width: 150px;
+}
+
+.employee-navigation-table .btn-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.employee-navigation-table .btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 60px;
+}
+
+/* Loading and empty states */
+.loading-text {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+}
+
+.loading-text i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+.no-data-text {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+}
+
+.error-text {
+    text-align: center;
+    padding: 40px;
+    color: #dc3545;
+}
+
+/* Recent employees grid */
+.recent-employees-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.recent-employee-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.recent-employee-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.recent-employee-card .employee-info {
+    margin-bottom: 10px;
+}
+
+.recent-employee-card .employee-code {
+    font-size: 14px;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 5px;
+}
+
+.recent-employee-card .employee-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.recent-employee-card .employee-location {
+    font-size: 12px;
+    color: #666;
+}
+
+.recent-employee-card .last-activity {
+    font-size: 11px;
+    color: #999;
+    border-top: 1px solid #eee;
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
+/* Pagination */
+.employee-navigation-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.employee-navigation-pagination .page-btn {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    min-width: 40px;
+    text-align: center;
+}
+
+.employee-navigation-pagination .page-btn:hover {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.employee-navigation-pagination .page-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.employee-navigation-pagination .page-btn:disabled {
+    background: #f8f9fa;
+    color: #999;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: #666;
+    margin: 0 15px;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.available {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-badge.partial {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-badge.complete {
+    background: #cce5ff;
+    color: #004085;
+    border: 1px solid #b3d7ff;
+}
+
+/* Schedule display */
+.schedule-list {
+    max-height: 80px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+
+.schedule-item {
+    padding: 2px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.schedule-item:last-child {
+    border-bottom: none;
+}
+
+.schedule-time {
+    font-weight: 500;
+    color: #333;
+}
+
+.schedule-status {
+    margin-left: 8px;
+    font-size: 10px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .search-form .filter-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+    }
+    
+    .employee-navigation-table-container {
+        max-height: 300px;
+    }
+    
+    .recent-employees-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .employee-nav-tabs {
+        flex-direction: column;
+    }
+    
+    .nav-tab {
+        border-radius: 0;
+    }
+}
+
+/* Large modal override for better space */
+.large-modal {
+    max-width: 1000px !important;
+    width: 95% !important;
+}
+
+/* Enhanced styling for action buttons */
+.btn-select-employee {
+    background: #28a745;
+    color: white;
+    border: 1px solid #28a745;
+}
+
+.btn-select-employee:hover {
+    background: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-view-employee {
+    background: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+}
+
+.btn-view-employee:hover {
+    background: #5a6268;
+    border-color: #545b62;
+}

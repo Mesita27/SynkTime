@@ -661,7 +661,7 @@ async function loadEmployeesForEnrollment() {
                     <td>${emp.SEDE || ''}</td>
                     <td>${biometricStatus}</td>
                     <td>
-                        <button type="button" class="btn-primary btn-sm" onclick="selectEmployeeForEnrollment(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
+                        <button type="button" class="btn-primary btn-sm" onclick="openBiometricOptionsModal(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
                             <i class="fas fa-fingerprint"></i> Inscribir
                         </button>
                     </td>
@@ -702,6 +702,55 @@ function clearEnrollmentFilters() {
     loadEstablecimientosForEnrollment();
     loadEmployeesForEnrollment();
 }
+
+/**
+ * Open biometric options modal for direct enrollment
+ */
+window.openBiometricOptionsModal = function(employeeId, employeeName) {
+    selectedEmployee = { id: employeeId, name: employeeName };
+    
+    // Update employee info
+    document.getElementById('biometric_options_employee_name').textContent = employeeName;
+    document.getElementById('biometric_options_employee_code').textContent = employeeId;
+    
+    // Show modal
+    document.getElementById('biometricOptionsModal').classList.add('show');
+    
+    // Detect devices for the options
+    detectBiometricDevices();
+};
+
+/**
+ * Close biometric options modal
+ */
+window.closeBiometricOptionsModal = function() {
+    document.getElementById('biometricOptionsModal').classList.remove('show');
+    selectedEmployee = null;
+};
+
+/**
+ * Select biometric enrollment type from options modal
+ */
+window.selectBiometricEnrollmentType = function(type) {
+    if (!selectedEmployee) return;
+    
+    // Close options modal
+    closeBiometricOptionsModal();
+    
+    // Open specific enrollment modal
+    switch (type) {
+        case 'fingerprint':
+            openFingerprintEnrollmentModal();
+            break;
+        case 'facial':
+            openFacialEnrollmentModal();
+            break;
+        case 'both':
+            // Start with fingerprint, then facial
+            openFingerprintEnrollmentModal();
+            break;
+    }
+};
 
 /**
  * Select employee for enrollment
