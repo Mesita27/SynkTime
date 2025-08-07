@@ -402,3 +402,160 @@ function refreshBiometricData() {
 
 // Auto-refresh every 5 minutes
 setInterval(refreshBiometricData, 300000);
+
+// ===================================================================
+// 9. REAL BIOMETRIC ENROLLMENT FUNCTIONS
+// ===================================================================
+
+/**
+ * Start real facial enrollment using Face-api.js
+ */
+window.startRealFacialEnrollment = async function(employeeId, employeeName) {
+    if (!window.realBiometricSystem) {
+        showNotification('Sistema de reconocimiento facial no disponible. Usar inscripción tradicional.', 'error');
+        return;
+    }
+
+    try {
+        // Initialize the system
+        await window.realBiometricSystem.initialize();
+        
+        // Setup video elements for enrollment
+        const videoElement = document.getElementById('facial_video');
+        const canvasElement = document.getElementById('facial_canvas');
+        
+        if (!videoElement || !canvasElement) {
+            throw new Error('Elementos de video no encontrados');
+        }
+
+        window.realBiometricSystem.setupVideoElement('facial_video', 'facial_canvas');
+        
+        // Start camera
+        await window.realBiometricSystem.startCamera();
+        
+        showNotification('Cámara iniciada. Preparándose para inscripción facial...', 'success');
+        
+        // Start real-time detection preview
+        window.realBiometricSystem.startRealTimeDetection((detections) => {
+            updateFaceDetectionStatus(detections);
+        });
+        
+        // Update UI to show enrollment in progress
+        updateEnrollmentUI('facial', 'ready', 'Posiciona tu rostro en el marco y presiona "Capturar"');
+        
+    } catch (error) {
+        console.error('Error starting facial enrollment:', error);
+        showNotification(`Error iniciando inscripción facial: ${error.message}`, 'error');
+    }
+};
+
+/**
+ * Capture face for enrollment
+ */
+window.captureFaceForEnrollment = async function() {
+    if (!window.realBiometricSystem) {
+        showNotification('Sistema biométrico no disponible', 'error');
+        return;
+    }
+
+    try {
+        updateEnrollmentUI('facial', 'processing', 'Capturando rostro...');
+        
+        // Capture face with the selected employee ID
+        const enrollmentData = await window.realBiometricSystem.enrollFace(selectedEmployee.id, 3);
+        
+        updateEnrollmentUI('facial', 'processing', 'Guardando datos biométricos...');
+        
+        // Send to server
+        const success = await saveFacialEnrollmentData(enrollmentData);
+        
+        if (success) {
+            updateEnrollmentUI('facial', 'success', 'Inscripción facial completada exitosamente');
+            showNotification('Inscripción facial registrada correctamente', 'success');
+            
+            // Refresh stats and close modal after delay
+            setTimeout(() => {
+                refreshBiometricData();
+                closeBiometricEnrollmentModal();
+            }, 2000);
+        } else {
+            throw new Error('Error guardando datos en el servidor');
+        }
+        
+    } catch (error) {
+        console.error('Error in facial enrollment:', error);
+        updateEnrollmentUI('facial', 'error', `Error: ${error.message}`);
+        showNotification(`Error en inscripción facial: ${error.message}`, 'error');
+    } finally {
+        // Stop real-time detection
+        if (window.realBiometricSystem) {
+            window.realBiometricSystem.stopRealTimeDetection();
+        }
+    }
+};
+
+/**
+ * Save facial enrollment data to server
+ */
+async function saveFacialEnrollmentData(enrollmentData) {
+    try {
+        const formData = new URLSearchParams({
+            employee_id: enrollmentData.employeeId,
+            face_template: JSON.stringify(enrollmentData.template),
+            captures_data: JSON.stringify(enrollmentData.captures)
+        });
+
+        const response = await fetch('api/biometric/enroll-facial-real.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Error desconocido');
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error saving facial enrollment:', error);
+        throw error;
+    }
+}
+
+/**
+ * Update enrollment UI status
+ */
+function updateEnrollmentUI(type, status, message) {
+    const statusElement = document.getElementById(`${type}_enrollment_status`);
+    const messageElement = document.getElementById(`${type}_enrollment_message`);
+    
+    if (statusElement) {
+        statusElement.className = `enrollment-status ${status}`;
+    }
+    
+    if (messageElement) {
+        messageElement.textContent = message;
+    }
+}
+
+/**
+ * Update face detection status in UI
+ */
+function updateFaceDetectionStatus(detections) {
+    const statusElement = document.getElementById('face_detection_status');
+    if (!statusElement) return;
+    
+    if (detections && detections.length > 0) {
+        if (detections.length === 1) {
+            statusElement.textContent = `Rostro detectado (Calidad: ${Math.round(detections[0].detection.score * 100)}%)`;
+            statusElement.className = 'detection-status good';
+        } else {
+            statusElement.textContent = `${detections.length} rostros detectados - Asegúrese de que solo una persona esté frente a la cámara`;
+            statusElement.className = 'detection-status warning';
+        }
+    } else {
+        statusElement.textContent = 'Sin rostro detectado';
+        statusElement.className = 'detection-status none';
+    }
+}

@@ -124,6 +124,9 @@
           <div class="face-outline">
             <div class="face-frame"></div>
           </div>
+          <div class="face-detection-overlay">
+            <span id="face_detection_status" class="detection-status none">Iniciando detección...</span>
+          </div>
         </div>
         <div class="recognition-instructions">
           <h4 id="facial_instruction">Posiciona tu rostro en el marco</h4>
