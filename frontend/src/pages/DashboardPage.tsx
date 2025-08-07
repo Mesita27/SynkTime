@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Grid,
   Paper,
   Typography,
   Box,
@@ -13,6 +12,8 @@ import {
   ListItemText,
   Chip,
   CircularProgress,
+  Grid,
+  Container,
 } from '@mui/material';
 import {
   People,
@@ -79,40 +80,41 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
-      
-      <Typography variant="subtitle1" color="textSecondary" gutterBottom>
-        Bienvenido, {user?.nombre_completo}
-      </Typography>
+    <Container maxWidth="lg">
+      <Box sx={{ flexGrow: 1, py: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Dashboard
+        </Typography>
+        
+        <Typography variant="subtitle1" color="textSecondary" gutterBottom>
+          Bienvenido, {user?.nombre_completo}
+        </Typography>
 
-      {stats && (
-        <Grid container spacing={3}>
-          {/* Stats Cards */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box display="flex" alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-                    <People />
-                  </Avatar>
-                  <Box>
-                    <Typography color="textSecondary" gutterBottom>
-                      Empleados Presentes Hoy
-                    </Typography>
-                    <Typography variant="h5">
-                      {stats.today.empleados_presentes_hoy} / {stats.today.total_empleados}
-                    </Typography>
-                    <Typography variant="body2" color="primary">
-                      {stats.today.porcentaje_asistencia}% de asistencia
-                    </Typography>
+        {stats && (
+          <Grid container spacing={3}>
+            {/* Stats Cards */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center">
+                    <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                      <People />
+                    </Avatar>
+                    <Box>
+                      <Typography color="textSecondary" gutterBottom>
+                        Empleados Presentes Hoy
+                      </Typography>
+                      <Typography variant="h5">
+                        {stats.today.empleados_presentes_hoy} / {stats.today.total_empleados}
+                      </Typography>
+                      <Typography variant="body2" color="primary">
+                        {stats.today.porcentaje_asistencia}% de asistencia
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
           <Grid item xs={12} sm={6} md={3}>
             <Card>
@@ -245,7 +247,8 @@ const DashboardPage: React.FC = () => {
           </Grid>
         </Grid>
       )}
-    </Box>
+      </Box>
+    </Container>
   );
 };
 

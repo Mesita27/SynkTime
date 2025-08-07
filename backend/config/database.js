@@ -1,3 +1,5 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const mysql = require('mysql2/promise');
 
 class Database {
@@ -8,10 +10,7 @@ class Database {
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'synktime',
-      charset: 'utf8mb4',
-      acquireTimeout: 60000,
-      timeout: 60000,
-      reconnect: true
+      charset: 'utf8mb4'
     };
   }
 
@@ -77,7 +76,15 @@ class Database {
   }
 }
 
-// Create singleton instance
-const db = new Database();
+// Use SQLite for development if MySQL is not available
+let db;
+
+if (process.env.USE_SQLITE === 'true') {
+  console.log('Using SQLite for development');
+  db = require('./database-sqlite');
+} else {
+  console.log('Using MySQL/MariaDB');
+  db = new Database();
+}
 
 module.exports = db;
