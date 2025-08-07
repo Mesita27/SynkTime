@@ -809,3 +809,70 @@
     color: var(--text-secondary);
     margin: 0;
 }
+
+/* ===================================================================
+   REAL FACE DETECTION STYLES
+   =================================================================== */
+
+.face-detection-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+    padding: 8px 12px;
+    z-index: 10;
+}
+
+.detection-status {
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: block;
+    text-align: center;
+}
+
+.detection-status.good {
+    color: #4ade80;
+}
+
+.detection-status.warning {
+    color: #facc15;
+}
+
+.detection-status.none {
+    color: #ef4444;
+}
+
+.enrollment-status {
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    text-align: center;
+    font-weight: 500;
+}
+
+.enrollment-status.ready {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #3b82f6;
+}
+
+.enrollment-status.processing {
+    background: #fef3c7;
+    color: #d97706;
+    border: 1px solid #f59e0b;
+}
+
+.enrollment-status.success {
+    background: #dcfce7;
+    color: #16a34a;
+    border: 1px solid #22c55e;
+}
+
+.enrollment-status.error {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #ef4444;
+}

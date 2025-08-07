@@ -1,6 +1,6 @@
 // ===================================================================
 // BIOMETRIC.JS - SYNKTIME BIOMETRIC VERIFICATION AND ENROLLMENT
-// Handles fingerprint and facial recognition functionality
+// Handles fingerprint and facial recognition functionality with REAL Face-api.js
 // ===================================================================
 
 // Global variables for biometric functionality
@@ -20,15 +20,32 @@ let biometricDevices = {
 // Device detection timeout
 const DEVICE_DETECTION_TIMEOUT = 5000;
 
+// Real biometric system instance
+let realBiometric = null;
+
 // ===================================================================
 // 1. DEVICE DETECTION AND INITIALIZATION
 // ===================================================================
 
 /**
- * Initialize biometric system
+ * Initialize biometric system with real Face-api.js
  */
-function initializeBiometricSystem() {
-    console.log('Initializing biometric system...');
+async function initializeBiometricSystem() {
+    console.log('Initializing biometric system with real facial recognition...');
+    
+    // Initialize real biometric system
+    if (typeof window.realBiometricSystem !== 'undefined') {
+        realBiometric = window.realBiometricSystem;
+        try {
+            const initialized = await realBiometric.initialize();
+            if (initialized) {
+                console.log('Real biometric system loaded successfully');
+            }
+        } catch (error) {
+            console.warn('Real biometric system failed to load, falling back to basic mode:', error);
+        }
+    }
+    
     detectBiometricDevices();
 }
 
@@ -398,9 +415,53 @@ function updateFacialStatus(text) {
 }
 
 /**
- * Automatic face capture for verification
+ * Automatic face capture for verification using real Face-api.js
  */
-function automaticFaceCapture() {
+async function automaticFaceCapture() {
+    if (!realBiometric) {
+        // Fallback to simulated version
+        automaticFaceCaptureSimulated();
+        return;
+    }
+
+    updateFacialInstruction('Permanece inmóvil...');
+    updateFacialStatus('Capturando imagen...');
+    
+    try {
+        // Use real biometric system for verification
+        const storedTemplate = await getStoredFaceTemplate(selectedEmployee.id);
+        if (!storedTemplate) {
+            updateFacialInstruction('Error');
+            updateFacialStatus('No hay datos biométricos registrados para este empleado');
+            return;
+        }
+
+        const verificationResult = await realBiometric.verifyFace(storedTemplate);
+        
+        updateFacialInstruction(verificationResult.success ? 'Verificación exitosa' : 'Verificación fallida');
+        updateFacialStatus(verificationResult.message);
+        
+        if (verificationResult.success) {
+            setTimeout(() => {
+                registerAttendanceWithBiometric('facial', null, verificationResult);
+            }, 1500);
+        } else {
+            setTimeout(() => {
+                updateFacialInstruction('Posiciona tu rostro en el marco');
+                updateFacialStatus('Presiona verificar para intentar de nuevo');
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Facial verification error:', error);
+        updateFacialInstruction('Error en verificación');
+        updateFacialStatus(error.message);
+    }
+}
+
+/**
+ * Fallback simulated facial capture
+ */
+function automaticFaceCaptureSimulated() {
     updateFacialInstruction('Permanece inmóvil...');
     updateFacialStatus('Capturando imagen...');
     
@@ -415,7 +476,7 @@ function automaticFaceCapture() {
     const imageData = canvas.toDataURL('image/jpeg');
     
     // Simulate facial recognition processing
-    processFacialRecognition(imageData);
+    processFacialRecognitionSimulated(imageData);
 }
 
 /**
@@ -426,9 +487,9 @@ window.captureFaceForVerification = function() {
 };
 
 /**
- * Process facial recognition
+ * Process facial recognition (simulated fallback)
  */
-function processFacialRecognition(imageData) {
+function processFacialRecognitionSimulated(imageData) {
     updateFacialInstruction('Procesando...');
     updateFacialStatus('Analizando imagen facial...');
     
@@ -456,6 +517,27 @@ function processFacialRecognition(imageData) {
     }, 3000);
 }
 
+/**
+ * Get stored face template for employee
+ */
+async function getStoredFaceTemplate(employeeId) {
+    try {
+        const response = await fetch('api/biometric/get-face-template.php', {
+            method: 'POST',
+            body: new URLSearchParams({ employee_id: employeeId })
+        });
+        
+        const result = await response.json();
+        if (result.success && result.template) {
+            return result.template;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error getting face template:', error);
+        return null;
+    }
+}
+
 // ===================================================================
 // 5. ATTENDANCE REGISTRATION WITH BIOMETRIC DATA
 // ===================================================================
@@ -463,13 +545,15 @@ function processFacialRecognition(imageData) {
 /**
  * Register attendance with biometric verification
  */
-function registerAttendanceWithBiometric(method, imageData = null) {
+function registerAttendanceWithBiometric(method, imageData = null, verificationResult = null) {
     if (!selectedEmployee) return;
     
     const formData = new URLSearchParams({
         id_empleado: selectedEmployee.id,
         verification_method: method,
-        image_data: imageData || ''
+        image_data: imageData || '',
+        confidence_score: verificationResult ? verificationResult.confidence : 0,
+        verification_details: verificationResult ? JSON.stringify(verificationResult) : ''
     });
     
     fetch('api/attendance/register-biometric.php', {

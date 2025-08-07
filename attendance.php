@@ -91,6 +91,10 @@ requireModuleAccess('asistencia'); // Verificar permisos para módulo de asisten
         </main>
     </div>
 </div>
+<!-- Face-api.js library -->
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@latest/dist/face-api.min.js"></script>
+<script src="assets/js/face-api-models.js"></script>
+<script src="assets/js/biometric-real.js"></script>
 <script src="assets/js/layout.js"></script>
 <script src="assets/js/attendance.js"></script>
 <script src="assets/js/biometric.js"></script>
