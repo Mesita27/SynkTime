@@ -1,9 +1,27 @@
 <!-- Modal para Inscripción Biométrica -->
 <div class="modal" id="biometricEnrollmentModal">
-  <div class="modal-content large-modal">
+  <div class="modal-content large-modal responsive-modal">
     <button type="button" class="modal-close" aria-label="Cerrar" onclick="closeBiometricEnrollmentModal()">
       <i class="fas fa-times"></i>
     </button>
+    
+    <!-- Modal Navigation Bar -->
+    <div class="modal-navbar">
+      <div class="modal-nav-breadcrumb">
+        <i class="fas fa-fingerprint"></i>
+        <span>Inscripción Biométrica</span>
+        <i class="fas fa-chevron-right"></i>
+        <span id="current-step-text">Seleccionar Empleado</span>
+      </div>
+      <div class="modal-nav-actions">
+        <button type="button" class="btn-nav" id="btnModalHelp" title="Ayuda">
+          <i class="fas fa-question-circle"></i>
+        </button>
+        <button type="button" class="btn-nav" id="btnModalFullscreen" title="Pantalla completa">
+          <i class="fas fa-expand"></i>
+        </button>
+      </div>
+    </div>
     
     <div class="modal-header">
       <h3 class="modal-title"><i class="fas fa-user-plus"></i> Inscripción Biométrica</h3>
@@ -112,10 +130,25 @@
 
 <!-- Modal para Inscripción de Huella -->
 <div class="modal" id="fingerprintEnrollmentModal">
-  <div class="modal-content">
+  <div class="modal-content responsive-modal">
     <button type="button" class="modal-close" aria-label="Cerrar" onclick="closeFingerprintEnrollmentModal()">
       <i class="fas fa-times"></i>
     </button>
+    
+    <!-- Modal Navigation Bar -->
+    <div class="modal-navbar">
+      <div class="modal-nav-breadcrumb">
+        <i class="fas fa-fingerprint"></i>
+        <span>Inscripción Biométrica</span>
+        <i class="fas fa-chevron-right"></i>
+        <span>Huella Dactilar</span>
+      </div>
+      <div class="modal-nav-actions">
+        <button type="button" class="btn-nav" onclick="closeFingerprintEnrollmentModal(); openBiometricEnrollmentModal();" title="Volver">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+      </div>
+    </div>
     
     <div class="modal-header">
       <h3 class="modal-title"><i class="fas fa-fingerprint"></i> Inscripción de Huella</h3>
@@ -195,10 +228,25 @@
 
 <!-- Modal para Inscripción Facial -->
 <div class="modal" id="facialEnrollmentModal">
-  <div class="modal-content">
+  <div class="modal-content responsive-modal">
     <button type="button" class="modal-close" aria-label="Cerrar" onclick="closeFacialEnrollmentModal()">
       <i class="fas fa-times"></i>
     </button>
+    
+    <!-- Modal Navigation Bar -->
+    <div class="modal-navbar">
+      <div class="modal-nav-breadcrumb">
+        <i class="fas fa-fingerprint"></i>
+        <span>Inscripción Biométrica</span>
+        <i class="fas fa-chevron-right"></i>
+        <span>Reconocimiento Facial</span>
+      </div>
+      <div class="modal-nav-actions">
+        <button type="button" class="btn-nav" onclick="closeFacialEnrollmentModal(); openBiometricEnrollmentModal();" title="Volver">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+      </div>
+    </div>
     
     <div class="modal-header">
       <h3 class="modal-title"><i class="fas fa-user-circle"></i> Inscripción Facial</h3>

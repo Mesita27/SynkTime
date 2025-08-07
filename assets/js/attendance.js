@@ -20,6 +20,7 @@ let imageBase64 = '';
 let autoRefreshTimer;
 let observacionIdAsistencia = null;
 let observacionTipo = null;
+let currentBiometricFilter = 'partial'; // Default to partial biometric employees
 
 // ===========================================================================
 // 1. INICIALIZACIÓN Y CONFIGURACIÓN GENERAL
@@ -866,6 +867,7 @@ async function cargarEmpleadosParaRegistro() {
     if (sede) params.append('sede', sede);
     if (establecimiento) params.append('establecimiento', establecimiento);
     if (codigo) params.append('codigo', codigo);
+    params.append('biometric_filter', currentBiometricFilter); // Add biometric filter
     params.append('_t', Date.now());
     
     const url = `${apiPath}?${params.toString()}`;
@@ -896,25 +898,23 @@ async function cargarEmpleadosParaRegistro() {
         tbody.innerHTML = '';
         
         if (!data.data || data.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="no-data-text">No hay empleados disponibles para registro de asistencia</td></tr>';
+            const filterText = getBiometricFilterText(currentBiometricFilter);
+            tbody.innerHTML = `<tr><td colspan="6" class="no-data-text">No hay empleados ${filterText} disponibles para registro de asistencia</td></tr>`;
             return;
         }
         
         data.data.forEach(emp => {
+            const biometricStatusHtml = getBiometricStatusHtml(emp.BIOMETRIC_STATUS, emp.HAS_FINGERPRINT, emp.HAS_FACIAL);
+            const actionButtons = getActionButtonsHtml(emp);
+            
             tbody.innerHTML += `
                 <tr>
                     <td>${emp.ID_EMPLEADO}</td>
                     <td>${emp.NOMBRE} ${emp.APELLIDO}</td>
                     <td>${emp.ESTABLECIMIENTO || ''}</td>
                     <td>${emp.SEDE || ''}</td>
-                    <td>
-                        <button type="button" class="btn-primary btn-sm" onclick="openBiometricVerificationModal(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
-                            <i class="fas fa-shield-alt"></i> Verificar
-                        </button>
-                        <button type="button" class="btn-secondary btn-sm" onclick="openAttendancePhotoModal(${emp.ID_EMPLEADO}, '${emp.NOMBRE} ${emp.APELLIDO}')">
-                            <i class="fas fa-camera"></i> Tradicional
-                        </button>
-                    </td>
+                    <td>${biometricStatusHtml}</td>
+                    <td>${actionButtons}</td>
                 </tr>
             `;
         });
@@ -924,7 +924,7 @@ async function cargarEmpleadosParaRegistro() {
         
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" class="error-text">
+                <td colspan="6" class="error-text">
                     <div>Error al cargar datos: ${error.message || 'Error desconocido'}</div>
                     <button onclick="cargarEmpleadosParaRegistro()" class="btn-sm btn-secondary mt-2">
                         <i class="fas fa-redo"></i> Reintentar
@@ -1238,3 +1238,246 @@ function saveObservation() {
         saveBtn.disabled = false;
     });
 }
+
+// ===========================================================================
+// BIOMETRIC FILTER FUNCTIONS
+// ===========================================================================
+
+/**
+ * Set quick biometric filter
+ */
+window.setQuickBiometricFilter = function(filterType) {
+    currentBiometricFilter = filterType;
+    
+    // Update active button
+    document.querySelectorAll('.btn-quick').forEach(btn => btn.classList.remove('active'));
+    const targetButtonId = filterType === 'all' ? 'btnAllEmployees' : 
+                          filterType === 'partial' ? 'btnPartialBiometric' :
+                          filterType === 'none' ? 'btnNoBiometric' : 'btnCompleteBiometric';
+    const targetButton = document.getElementById(targetButtonId);
+    if (targetButton) {
+        targetButton.classList.add('active');
+    }
+    
+    // Update filter info text
+    updateFilterInfoText();
+    
+    // Reload employees
+    cargarEmpleadosParaRegistro();
+};
+
+/**
+ * Update filter info text based on current biometric filter
+ */
+function updateFilterInfoText() {
+    const filterInfoText = document.querySelector('.filter-info-text');
+    if (filterInfoText) {
+        const baseText = 'Empleados con horarios asignados para hoy';
+        const filterDescription = getBiometricFilterText(currentBiometricFilter);
+        filterInfoText.innerHTML = `<i class="fas fa-info-circle"></i> ${baseText} - ${filterDescription}`;
+    }
+}
+
+/**
+ * Get biometric filter description text
+ */
+function getBiometricFilterText(filterType) {
+    const descriptions = {
+        'all': 'todos los empleados',
+        'partial': 'con biometría parcial (solo huella O facial)',
+        'none': 'sin datos biométricos',
+        'complete': 'con biometría completa (huella Y facial)'
+    };
+    return descriptions[filterType] || 'filtrados';
+}
+
+/**
+ * Get biometric status HTML for display
+ */
+function getBiometricStatusHtml(status, hasFingerprint, hasFacial) {
+    const icons = {
+        fingerprint: hasFingerprint ? '<i class="fas fa-fingerprint text-success"></i>' : '<i class="fas fa-fingerprint text-muted"></i>',
+        facial: hasFacial ? '<i class="fas fa-user-circle text-success"></i>' : '<i class="fas fa-user-circle text-muted"></i>'
+    };
+    
+    let statusClass = '';
+    let statusText = '';
+    
+    switch (status) {
+        case 'complete':
+            statusClass = 'badge-success';
+            statusText = 'Completo';
+            break;
+        case 'partial':
+            statusClass = 'badge-warning';
+            statusText = 'Parcial';
+            break;
+        case 'none':
+            statusClass = 'badge-danger';
+            statusText = 'Sin registrar';
+            break;
+        default:
+            statusClass = 'badge-secondary';
+            statusText = 'Desconocido';
+    }
+    
+    return `
+        <div class="biometric-status-cell">
+            <div class="biometric-icons">
+                ${icons.fingerprint} ${icons.facial}
+            </div>
+            <div class="status-badge ${statusClass}">${statusText}</div>
+        </div>
+    `;
+}
+
+/**
+ * Get action buttons HTML based on biometric status
+ */
+function getActionButtonsHtml(employee) {
+    const biometricStatus = employee.BIOMETRIC_STATUS;
+    const employeeId = employee.ID_EMPLEADO;
+    const employeeName = `${employee.NOMBRE} ${employee.APELLIDO}`;
+    
+    let buttons = '';
+    
+    // Always show traditional photo option
+    buttons += `
+        <button type="button" class="btn-secondary btn-sm" onclick="openAttendancePhotoModal(${employeeId}, '${employeeName}')" title="Registro tradicional con foto">
+            <i class="fas fa-camera"></i> Tradicional
+        </button>
+    `;
+    
+    // Show biometric verification only if employee has some biometric data
+    if (biometricStatus === 'complete' || biometricStatus === 'partial') {
+        buttons = `
+            <button type="button" class="btn-primary btn-sm" onclick="openBiometricVerificationModal(${employeeId}, '${employeeName}')" title="Verificación biométrica">
+                <i class="fas fa-shield-alt"></i> Verificar
+            </button>
+        ` + buttons;
+    }
+    
+    // Show enrollment option for employees with no or partial biometric data
+    if (biometricStatus === 'none' || biometricStatus === 'partial') {
+        buttons += `
+            <button type="button" class="btn-info btn-sm" onclick="openBiometricEnrollmentFromAttendance(${employeeId}, '${employeeName}')" title="Inscribir datos biométricos">
+                <i class="fas fa-fingerprint"></i> Inscribir
+            </button>
+        `;
+    }
+    
+    return `<div class="btn-actions">${buttons}</div>`;
+}
+
+/**
+ * Open biometric enrollment modal from attendance registration
+ */
+window.openBiometricEnrollmentFromAttendance = function(employeeId, employeeName) {
+    // Close attendance registration modal first
+    closeAttendanceRegisterModal();
+    
+    // Open biometric enrollment modal and auto-select the employee
+    if (typeof openBiometricEnrollmentModal === 'function') {
+        openBiometricEnrollmentModal();
+        
+        // Wait for modal to be fully loaded before selecting employee
+        setTimeout(() => {
+            const codigoInput = document.getElementById('enrollment_codigo');
+            if (codigoInput) {
+                codigoInput.value = employeeId;
+                // Trigger search to load the specific employee
+                if (typeof loadEmployeesForEnrollment === 'function') {
+                    loadEmployeesForEnrollment();
+                }
+            }
+        }, 500);
+    } else {
+        // Fallback to show notification if enrollment modal is not available
+        showNotification(`Para inscribir datos biométricos del empleado ${employeeName}, vaya al módulo de Inscripción Biométrica`, 'info');
+    }
+};
+
+// ===========================================================================
+// MODAL NAVIGATION AND RESPONSIVE FEATURES
+// ===========================================================================
+
+/**
+ * Initialize modal navigation features
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    initializeModalNavigation();
+});
+
+function initializeModalNavigation() {
+    // Add fullscreen toggle functionality
+    document.querySelectorAll('#btnModalFullscreen').forEach(btn => {
+        btn.addEventListener('click', toggleModalFullscreen);
+    });
+    
+    // Add help functionality
+    document.querySelectorAll('#btnModalHelp').forEach(btn => {
+        btn.addEventListener('click', showModalHelp);
+    });
+    
+    // Add refresh functionality  
+    document.querySelectorAll('#btnModalRefresh').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Add visual feedback
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            }, 1000);
+        });
+    });
+}
+
+/**
+ * Toggle modal fullscreen mode
+ */
+function toggleModalFullscreen(event) {
+    const button = event.target.closest('.btn-nav');
+    const modal = button.closest('.modal');
+    
+    modal.classList.toggle('fullscreen');
+    
+    const icon = button.querySelector('i');
+    if (modal.classList.contains('fullscreen')) {
+        icon.className = 'fas fa-compress';
+        button.title = 'Salir de pantalla completa';
+    } else {
+        icon.className = 'fas fa-expand';
+        button.title = 'Pantalla completa';
+    }
+}
+
+/**
+ * Show modal help
+ */
+function showModalHelp() {
+    const helpContent = `
+        <h4>Ayuda - Inscripción Biométrica</h4>
+        <ul>
+            <li><strong>Paso 1:</strong> Seleccione el empleado usando los filtros</li>
+            <li><strong>Paso 2:</strong> Elija el tipo de inscripción (huella o facial)</li>
+            <li><strong>Paso 3:</strong> Siga las instrucciones en pantalla</li>
+            <li><strong>Botones rápidos:</strong> Use los filtros para encontrar empleados por estado biométrico</li>
+        </ul>
+        <p><small>Para mejores resultados, asegúrese de que el dispositivo biométrico esté conectado.</small></p>
+    `;
+    
+    showNotification(helpContent, 'info', 8000);
+}
+
+/**
+ * Update modal step text for navigation
+ */
+function updateModalStep(stepText) {
+    const stepElement = document.getElementById('current-step-text');
+    if (stepElement) {
+        stepElement.textContent = stepText;
+    }
+}
+
+// Export functions for use in other scripts
+window.updateModalStep = updateModalStep;
+window.toggleModalFullscreen = toggleModalFullscreen;
