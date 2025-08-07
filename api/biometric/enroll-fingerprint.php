@@ -28,8 +28,8 @@ try {
     // Validate employee exists and is active
     $stmt = $conn->prepare("
         SELECT ID_EMPLEADO, NOMBRE, APELLIDO 
-        FROM EMPLEADO 
-        WHERE ID_EMPLEADO = ? AND ACTIVO = 'S'
+        FROM empleados 
+        WHERE ID_EMPLEADO = ? AND ACTIVO = 1
     ");
     $stmt->execute([$employee_id]);
     $employee = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -59,7 +59,7 @@ try {
             CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             ACTIVO TINYINT(1) DEFAULT 1,
-            FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO),
+            FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO),
             UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
         )
     ";
@@ -107,7 +107,7 @@ try {
             FECHA DATE,
             HORA TIME,
             CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO)
+            FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO)
         )
     ";
     $conn->exec($create_logs_table_sql);
