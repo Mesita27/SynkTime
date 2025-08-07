@@ -29,7 +29,7 @@ try {
             CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             ACTIVO TINYINT(1) DEFAULT 1,
-            FOREIGN KEY (ID_EMPLEADO) REFERENCES EMPLEADO(ID_EMPLEADO),
+            FOREIGN KEY (ID_EMPLEADO) REFERENCES empleados(ID_EMPLEADO),
             UNIQUE KEY unique_employee_finger (ID_EMPLEADO, FINGER_TYPE)
         )
     ";
@@ -47,9 +47,9 @@ try {
             MAX(CASE WHEN bd.BIOMETRIC_TYPE = 'facial' AND bd.ACTIVO = 1 THEN 1 ELSE 0 END) as has_facial,
             COUNT(CASE WHEN bd.BIOMETRIC_TYPE = 'fingerprint' AND bd.ACTIVO = 1 THEN 1 END) as fingerprint_count,
             COUNT(CASE WHEN bd.BIOMETRIC_TYPE = 'facial' AND bd.ACTIVO = 1 THEN 1 END) as facial_count
-        FROM EMPLEADO e
-        LEFT JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-        LEFT JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
+        FROM empleados e
+        LEFT JOIN establecimientos est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+        LEFT JOIN sedes s ON est.ID_SEDE = s.ID_SEDE
         LEFT JOIN biometric_data bd ON e.ID_EMPLEADO = bd.ID_EMPLEADO
         WHERE e.ACTIVO = 1
     ";
