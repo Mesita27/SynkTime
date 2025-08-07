@@ -12,8 +12,9 @@ import {
   ListItemText,
   Chip,
   CircularProgress,
+  Grid,
+  Container,
 } from '@mui/material';
-import Grid2 from '@mui/material/Grid2';
 import {
   People,
   AccessTime,
@@ -79,42 +80,43 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
-      
-      <Typography variant="subtitle1" color="textSecondary" gutterBottom>
-        Bienvenido, {user?.nombre_completo}
-      </Typography>
+    <Container maxWidth="lg">
+      <Box sx={{ flexGrow: 1, py: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Dashboard
+        </Typography>
+        
+        <Typography variant="subtitle1" color="textSecondary" gutterBottom>
+          Bienvenido, {user?.nombre_completo}
+        </Typography>
 
-      {stats && (
-        <Grid2 container spacing={3}>
-          {/* Stats Cards */}
-          <Grid2 item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box display="flex" alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-                    <People />
-                  </Avatar>
-                  <Box>
-                    <Typography color="textSecondary" gutterBottom>
-                      Empleados Presentes Hoy
-                    </Typography>
-                    <Typography variant="h5">
-                      {stats.today.empleados_presentes_hoy} / {stats.today.total_empleados}
-                    </Typography>
-                    <Typography variant="body2" color="primary">
-                      {stats.today.porcentaje_asistencia}% de asistencia
-                    </Typography>
+        {stats && (
+          <Grid container spacing={3}>
+            {/* Stats Cards */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center">
+                    <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                      <People />
+                    </Avatar>
+                    <Box>
+                      <Typography color="textSecondary" gutterBottom>
+                        Empleados Presentes Hoy
+                      </Typography>
+                      <Typography variant="h5">
+                        {stats.today.empleados_presentes_hoy} / {stats.today.total_empleados}
+                      </Typography>
+                      <Typography variant="body2" color="primary">
+                        {stats.today.porcentaje_asistencia}% de asistencia
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid2>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          <Grid2 item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -135,9 +137,9 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid2>
+          </Grid>
 
-          <Grid2 item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -158,9 +160,9 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid2>
+          </Grid>
 
-          <Grid2 item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center">
@@ -181,10 +183,10 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid2>
+          </Grid>
 
           {/* Recent Activity */}
-          <Grid2 item xs={12} md={8}>
+          <Grid item xs={12} md={8}>
             <Card>
               <CardHeader title="Actividad Reciente" />
               <CardContent>
@@ -219,10 +221,10 @@ const DashboardPage: React.FC = () => {
                 </List>
               </CardContent>
             </Card>
-          </Grid2>
+          </Grid>
 
           {/* Quick Actions */}
-          <Grid2 item xs={12} md={4}>
+          <Grid item xs={12} md={4}>
             <Card>
               <CardHeader title="Acceso Rápido" />
               <CardContent>
@@ -242,10 +244,11 @@ const DashboardPage: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       )}
-    </Box>
+      </Box>
+    </Container>
   );
 };
 

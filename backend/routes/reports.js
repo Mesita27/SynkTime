@@ -418,12 +418,12 @@ router.get('/dashboard-stats', authenticateToken, async (req, res) => {
       SELECT 
         l.ACCION,
         l.DETALLE,
-        l.FECHA,
+        l.FECHA_HORA as FECHA,
         u.NOMBRE_COMPLETO as USUARIO
       FROM LOG l
       JOIN usuario u ON l.ID_USUARIO = u.ID_USUARIO
       WHERE u.ID_EMPRESA = ?
-      ORDER BY l.FECHA DESC
+      ORDER BY l.FECHA_HORA DESC
       LIMIT 10
     `;
 
