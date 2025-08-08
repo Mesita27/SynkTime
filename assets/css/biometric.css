@@ -9,6 +9,139 @@
     width: 1200px;
 }
 
+/* Enhanced Photo Display with Biometric Information */
+.photo-container {
+    position: relative;
+    display: inline-block;
+}
+
+.asistencia-foto {
+    max-width: 50px;
+    max-height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.asistencia-foto:hover {
+    transform: scale(1.1);
+}
+
+.asistencia-foto.biometric-photo {
+    border: 2px solid var(--primary);
+}
+
+.verification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: bold;
+    color: white;
+    text-transform: uppercase;
+}
+
+.badge-facial {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.badge-fingerprint {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.badge-traditional {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.badge-unknown {
+    background: linear-gradient(135deg, #666 0%, #999 100%);
+}
+
+/* Biometric Photo Modal */
+.biometric-photo-modal-content {
+    max-width: 800px;
+    width: 90%;
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.biometric-photo-modal-content .modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.biometric-photo-modal-content .modal-body {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.biometric-photo-modal-content img {
+    max-width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+
+.verification-info {
+    background: var(--primary-lighter);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.verification-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.verification-detail:last-child {
+    margin-bottom: 0;
+}
+
+.verification-detail i {
+    width: 20px;
+    color: var(--primary);
+}
+
+.score-high {
+    color: var(--success);
+    font-weight: bold;
+}
+
+.score-medium {
+    color: var(--warning);
+    font-weight: bold;
+}
+
+.score-low {
+    color: var(--danger);
+    font-weight: bold;
+}
+
+.success {
+    color: var(--success);
+    font-weight: bold;
+}
+
+.failure {
+    color: var(--danger);
+    font-weight: bold;
+}
+
 /* Verification Options */
 .verification-options {
     display: grid;

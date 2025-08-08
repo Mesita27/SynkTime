@@ -487,11 +487,23 @@ function renderAttendanceTable(data) {
             asistenciasAgrupadas[key].ENTRADA_TARDANZA = asistencia.tardanza;
             asistenciasAgrupadas[key].ENTRADA_ID = asistencia.id;
             asistenciasAgrupadas[key].ENTRADA_FOTO = asistencia.foto;
+            asistenciasAgrupadas[key].ENTRADA_VERIFICACION = {
+                metodo: asistencia.metodo_verificacion || asistencia.verification_method_legacy,
+                foto_verificacion: asistencia.FOTO_VERIFICACION,
+                puntuacion: asistencia.PUNTUACION_COINCIDENCIA,
+                exito: asistencia.RESULTADO_VERIFICACION
+            };
         } else if (asistencia.tipo === 'SALIDA') {
             asistenciasAgrupadas[key].SALIDA_HORA = asistencia.hora;
             asistenciasAgrupadas[key].SALIDA_TARDANZA = asistencia.tardanza;
             asistenciasAgrupadas[key].SALIDA_ID = asistencia.id;
             asistenciasAgrupadas[key].SALIDA_FOTO = asistencia.foto;
+            asistenciasAgrupadas[key].SALIDA_VERIFICACION = {
+                metodo: asistencia.metodo_verificacion || asistencia.verification_method_legacy,
+                foto_verificacion: asistencia.FOTO_VERIFICACION,
+                puntuacion: asistencia.PUNTUACION_COINCIDENCIA,
+                exito: asistencia.RESULTADO_VERIFICACION
+            };
         }
     });
     
@@ -577,16 +589,9 @@ function renderAttendanceTable(data) {
                 <i class="fas fa-${att.SALIDA_OBSERVACION ? 'edit' : 'comment-medical'}"></i>
              </button>` : '';
         
-        // Formatear fotos con clase para hacerlas ampliables
-        let fotoEntrada = att.ENTRADA_FOTO ? 
-            `<img src="uploads/${att.ENTRADA_FOTO}" alt="Foto de entrada" class="asistencia-foto" 
-             onclick="openPhotoModal('uploads/${att.ENTRADA_FOTO}', '${att.NOMBRE}')">` : 
-            '-';
-            
-        let fotoSalida = att.SALIDA_FOTO ? 
-            `<img src="uploads/${att.SALIDA_FOTO}" alt="Foto de salida" class="asistencia-foto" 
-             onclick="openPhotoModal('uploads/${att.SALIDA_FOTO}', '${att.NOMBRE}')">` : 
-            '-';
+        // Formatear fotos con información biométrica
+        let fotoEntrada = formatBiometricPhoto(att.ENTRADA_FOTO, att.ENTRADA_VERIFICACION, att.NOMBRE, 'entrada');
+        let fotoSalida = formatBiometricPhoto(att.SALIDA_FOTO, att.SALIDA_VERIFICACION, att.NOMBRE, 'salida');
         
         // Formatear horarios
         let horarioEntrada = att.ENTRADA_HORA || '-';
@@ -1237,4 +1242,287 @@ function saveObservation() {
         saveBtn.innerHTML = originalText;
         saveBtn.disabled = false;
     });
+}
+
+// ===========================================================================
+// 12. FUNCIONES BIOMÉTRICAS MEJORADAS
+// ===========================================================================
+
+/**
+ * Format biometric photo with verification information
+ */
+function formatBiometricPhoto(foto, verificacion, nombreEmpleado, tipo) {
+    if (!foto && !verificacion?.foto_verificacion) {
+        return '-';
+    }
+    
+    // Determine which photo to use - verification photo takes priority for biometric methods
+    let photoUrl = foto;
+    let isBiometric = false;
+    
+    if (verificacion?.foto_verificacion && verificacion.metodo !== 'TRADICIONAL') {
+        photoUrl = 'uploads/verificacion/' + verificacion.foto_verificacion;
+        isBiometric = true;
+    } else if (foto) {
+        photoUrl = 'uploads/' + foto;
+    }
+    
+    if (!photoUrl) return '-';
+    
+    // Create verification badge based on method
+    let verificationBadge = '';
+    if (verificacion?.metodo) {
+        const badgeClass = getBiometricBadgeClass(verificacion.metodo);
+        const badgeIcon = getBiometricIcon(verificacion.metodo);
+        const badgeText = getBiometricText(verificacion.metodo);
+        
+        let scoreText = '';
+        if (verificacion.puntuacion && verificacion.metodo !== 'TRADICIONAL') {
+            scoreText = ` (${Math.round(verificacion.puntuacion)}%)`;
+        }
+        
+        verificationBadge = `
+            <div class="verification-badge ${badgeClass}" title="${badgeText}${scoreText}">
+                <i class="${badgeIcon}"></i>
+                ${verificacion.metodo === 'TRADICIONAL' ? 'T' : 
+                  verificacion.metodo === 'FACIAL' ? 'F' : 
+                  verificacion.metodo === 'HUELLA_DIGITAL' ? 'H' : '?'}
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="photo-container">
+            <img src="${photoUrl}" 
+                 alt="Foto de ${tipo}" 
+                 class="asistencia-foto ${isBiometric ? 'biometric-photo' : ''}" 
+                 onclick="openBiometricPhotoModal('${photoUrl}', '${nombreEmpleado}', '${tipo}', ${JSON.stringify(verificacion).replace(/"/g, '&quot;')})">
+            ${verificationBadge}
+        </div>
+    `;
+}
+
+/**
+ * Get CSS class for biometric badge
+ */
+function getBiometricBadgeClass(metodo) {
+    switch (metodo) {
+        case 'FACIAL': return 'badge-facial';
+        case 'HUELLA_DIGITAL': return 'badge-fingerprint';
+        case 'TRADICIONAL': return 'badge-traditional';
+        default: return 'badge-unknown';
+    }
+}
+
+/**
+ * Get icon for biometric method
+ */
+function getBiometricIcon(metodo) {
+    switch (metodo) {
+        case 'FACIAL': return 'fas fa-user-circle';
+        case 'HUELLA_DIGITAL': return 'fas fa-fingerprint';
+        case 'TRADICIONAL': return 'fas fa-camera';
+        default: return 'fas fa-question';
+    }
+}
+
+/**
+ * Get text for biometric method
+ */
+function getBiometricText(metodo) {
+    switch (metodo) {
+        case 'FACIAL': return 'Reconocimiento Facial';
+        case 'HUELLA_DIGITAL': return 'Huella Dactilar';
+        case 'TRADICIONAL': return 'Verificación Tradicional';
+        default: return 'Método Desconocido';
+    }
+}
+
+/**
+ * Open enhanced photo modal with biometric information
+ */
+window.openBiometricPhotoModal = function(photoUrl, nombreEmpleado, tipo, verificacion) {
+    let modal = document.getElementById('biometricPhotoModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'biometricPhotoModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="biometric-photo-modal-content">
+                <div class="modal-header">
+                    <h3 id="biometricPhotoModalTitle"></h3>
+                    <button class="modal-close" onclick="closeBiometricPhotoModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <img id="biometricPhotoModalImage" src="" alt="Foto de asistencia">
+                    <div id="biometricVerificationInfo" class="verification-info"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    const modalImg = document.getElementById('biometricPhotoModalImage');
+    const modalTitle = document.getElementById('biometricPhotoModalTitle');
+    const verificationInfo = document.getElementById('biometricVerificationInfo');
+    
+    modalImg.src = photoUrl;
+    modalTitle.textContent = `${nombreEmpleado} - ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`;
+    
+    // Display verification information
+    if (verificacion && verificacion.metodo) {
+        const icon = getBiometricIcon(verificacion.metodo);
+        const text = getBiometricText(verificacion.metodo);
+        
+        let infoHTML = `
+            <div class="verification-detail">
+                <i class="${icon}"></i>
+                <span><strong>Método:</strong> ${text}</span>
+            </div>
+        `;
+        
+        if (verificacion.puntuacion && verificacion.metodo !== 'TRADICIONAL') {
+            const scoreClass = verificacion.puntuacion >= 80 ? 'score-high' : 
+                             verificacion.puntuacion >= 60 ? 'score-medium' : 'score-low';
+            infoHTML += `
+                <div class="verification-detail">
+                    <i class="fas fa-chart-line"></i>
+                    <span><strong>Confianza:</strong> <span class="${scoreClass}">${Math.round(verificacion.puntuacion)}%</span></span>
+                </div>
+            `;
+        }
+        
+        if (verificacion.exito !== undefined) {
+            const successIcon = verificacion.exito ? 'fa-check-circle' : 'fa-times-circle';
+            const successClass = verificacion.exito ? 'success' : 'failure';
+            const successText = verificacion.exito ? 'Exitosa' : 'Fallida';
+            infoHTML += `
+                <div class="verification-detail">
+                    <i class="fas ${successIcon}"></i>
+                    <span><strong>Verificación:</strong> <span class="${successClass}">${successText}</span></span>
+                </div>
+            `;
+        }
+        
+        verificationInfo.innerHTML = infoHTML;
+    } else {
+        verificationInfo.innerHTML = '<div class="verification-detail"><i class="fas fa-info-circle"></i><span>Sin información de verificación</span></div>';
+    }
+    
+    modal.classList.add('show');
+    
+    modalImg.onload = function() {
+        setTimeout(() => {
+            modalImg.style.opacity = '1';
+        }, 100);
+    };
+};
+
+/**
+ * Close biometric photo modal
+ */
+window.closeBiometricPhotoModal = function() {
+    const modal = document.getElementById('biometricPhotoModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+};
+
+// ===========================================================================
+// 13. BIOMETRIC VERIFICATION MODAL INTEGRATION
+// ===========================================================================
+
+/**
+ * Open biometric verification modal
+ */
+window.openBiometricVerificationModal = function(id_empleado, nombre_empleado) {
+    empleadoSeleccionado = id_empleado;
+    
+    const modal = document.getElementById('biometricVerificationModal');
+    if (!modal) {
+        console.error('Biometric verification modal not found');
+        return;
+    }
+    
+    // Set employee name
+    const employeeNameElement = document.getElementById('biometric_employee_name');
+    if (employeeNameElement) {
+        employeeNameElement.textContent = nombre_empleado;
+    }
+    
+    // Initialize biometric system if not already done
+    if (typeof initializeBiometricSystem === 'function') {
+        initializeBiometricSystem();
+    }
+    
+    modal.classList.add('show');
+};
+
+/**
+ * Close biometric verification modal
+ */
+window.closeBiometricVerificationModal = function() {
+    const modal = document.getElementById('biometricVerificationModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+};
+
+/**
+ * Handle successful biometric verification
+ */
+window.onBiometricVerificationSuccess = function(verification_method, image_data) {
+    if (!empleadoSeleccionado) {
+        console.error('No employee selected for verification');
+        return;
+    }
+    
+    // Close verification modal
+    closeBiometricVerificationModal();
+    
+    // Register attendance with biometric data
+    registerBiometricAttendance(empleadoSeleccionado, verification_method, image_data);
+};
+
+/**
+ * Register attendance using biometric verification
+ */
+function registerBiometricAttendance(id_empleado, verification_method, image_data) {
+    const saveBtn = document.createElement('button');
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando asistencia...';
+    
+    showNotification('Registrando asistencia biométrica...', 'info');
+    
+    fetch('api/attendance/register-biometric.php', {
+        method: 'POST',
+        body: new URLSearchParams({
+            id_empleado: id_empleado,
+            verification_method: verification_method,
+            image_data: image_data
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(
+                `${data.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} registrada correctamente con ${data.metodo_verificacion || verification_method}`, 
+                'success'
+            );
+            
+            // Close all modals
+            closeAttendanceRegisterModal();
+            
+            // Reload attendance data
+            loadAttendanceDay();
+        } else {
+            showNotification('Error: ' + (data.message || 'No se pudo registrar la asistencia.'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error registering biometric attendance:', error);
+        showNotification('Error al comunicarse con el servidor. Por favor intente de nuevo.', 'error');
+    });
+};
 }
