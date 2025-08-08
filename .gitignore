@@ -1,0 +1,9 @@
+# .NET build artifacts
+integrations/fingerprint-api/bin/
+integrations/fingerprint-api/obj/
+
+# Storage directories (will be created automatically)
+storage/biometrics/photos/
+
+# Temporary test files
+test/temp/
