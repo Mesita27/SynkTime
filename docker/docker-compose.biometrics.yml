@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  insightface-rest:
+    image: sthphoenix/insightface-rest:v2023.06.18
+    container_name: synktime-insightface
+    ports:
+      - "18081:18080"
+    environment:
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+      - NUM_WORKERS=1
+      - INFERENCE_BACKEND=onnx
+      - DET_NAME=retinaface_r50_v1
+      - DET_THRESH=0.6
+      - REC_NAME=arcface_r100_v1
+      - REC_THRESH=0.45
+      - GA_NAME=genderage_v1
+      - KEEP_ALL=true
+      - MAX_SIZE=640,640
+    volumes:
+      - ./models:/models
+      - ./temp:/temp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18080/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - biometric-network
+
+  sourceafis-http:
+    image: wahidfebr/quarkus-sourceafis:latest
+    container_name: synktime-sourceafis
+    ports:
+      - "18082:8080"
+    environment:
+      - QUARKUS_HTTP_PORT=8080
+      - QUARKUS_LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - biometric-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: synktime-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    networks:
+      - biometric-network
+
+networks:
+  biometric-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
