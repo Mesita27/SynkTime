@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # InsightFace-REST API for facial recognition
+  insightface-rest:
+    image: mesita27/insightface-rest:latest
+    container_name: synktime-insightface
+    ports:
+      - "18081:18080"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FORCE_CPU_ONLY=1  # Set to 0 for GPU acceleration
+      - MAX_SIZE=1280     # Maximum image dimension
+      - DETECT_GA=1       # Enable face detection and analysis
+      - KEEP_ALL=1        # Keep all detected faces
+      - DET_SIZE=640      # Detection model input size
+    volumes:
+      - insightface_models:/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18080/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - biometric-network
+
+  # SourceAFIS HTTP wrapper for fingerprint recognition  
+  sourceafis-http:
+    image: mesita27/sourceafis-http:latest
+    container_name: synktime-sourceafis
+    ports:
+      - "18082:8080"
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+      - SERVER_PORT=8080
+      - LOGGING_LEVEL_ROOT=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - biometric-network
+
+  # Redis for caching (optional but recommended)
+  redis-cache:
+    image: redis:7-alpine
+    container_name: synktime-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - biometric-network
+
+  # Nginx reverse proxy for load balancing (optional)
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: synktime-nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - insightface-rest
+      - sourceafis-http
+    restart: unless-stopped
+    networks:
+      - biometric-network
+
+volumes:
+  insightface_models:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  biometric-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
