@@ -298,10 +298,13 @@ function simulateFingerprintScan() {
  */
 function processFingerprintVerification(success) {
     if (success) {
-        // Register attendance automatically
-        registerAttendanceWithBiometric('fingerprint');
+        closeFingerprintVerificationModal();
+        
+        // Call enhanced verification API
+        performEnhancedVerification('HUELLA_DIGITAL', null);
     }
 }
+
 
 // ===================================================================
 // 4. FACIAL RECOGNITION VERIFICATION
@@ -434,7 +437,7 @@ function processFacialRecognition(imageData) {
     
     // Simulate processing time
     setTimeout(() => {
-        // Simulate random success/failure
+        // Simulate random success/failure for demo
         const success = Math.random() > 0.2; // 80% success rate
         
         if (success) {
@@ -442,19 +445,26 @@ function processFacialRecognition(imageData) {
             updateFacialStatus('Rostro reconocido correctamente');
             
             setTimeout(() => {
-                registerAttendanceWithBiometric('facial', imageData);
+                stopFacialCamera();
+                closeFacialVerificationModal();
+                
+                // Call enhanced verification API with captured image
+                performEnhancedVerification('FACIAL', imageData);
             }, 1500);
         } else {
             updateFacialInstruction('Verificación fallida');
             updateFacialStatus('Rostro no reconocido. Intenta de nuevo.');
             
+            // Allow retry
             setTimeout(() => {
                 updateFacialInstruction('Posiciona tu rostro en el marco');
-                updateFacialStatus('Presiona verificar para intentar de nuevo');
+                updateFacialStatus('Listo para nueva captura');
+                document.getElementById('capture_face_btn').style.display = 'inline-flex';
             }, 2000);
         }
     }, 3000);
 }
+
 
 // ===================================================================
 // 5. ATTENDANCE REGISTRATION WITH BIOMETRIC DATA
@@ -1126,3 +1136,116 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeBiometricSystem();
     }
 });
+
+// ===================================================================
+// 10. ENHANCED VERIFICATION API INTEGRATION
+// ===================================================================
+
+/**
+ * Perform enhanced biometric verification using new API
+ */
+function performEnhancedVerification(tipo_verificacion, imageData) {
+    if (!selectedEmployee) {
+        console.error('No employee selected for verification');
+        return;
+    }
+    
+    // Show processing notification
+    showNotification('Procesando verificación biométrica...', 'info');
+    
+    const formData = new URLSearchParams({
+        id_empleado: selectedEmployee.id,
+        tipo_verificacion: tipo_verificacion,
+        datos_verificacion: imageData || 'simulated_biometric_data',
+        foto_verificacion: imageData || null
+    });
+    
+    fetch('api/biometric/verify-enhanced.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Verification successful, now register attendance
+            registerAttendanceWithEnhancedVerification(data);
+        } else {
+            showNotification('Verificación biométrica fallida: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error in enhanced verification:', error);
+        showNotification('Error en verificación biométrica', 'error');
+    });
+}
+
+/**
+ * Register attendance using enhanced verification result
+ */
+function registerAttendanceWithEnhancedVerification(verificationData) {
+    const formData = new URLSearchParams({
+        id_empleado: selectedEmployee.id,
+        verification_method: mapToLegacyMethod(verificationData.tipo_verificacion),
+        image_data: verificationData.foto_verificacion || null,
+        verification_score: verificationData.puntuacion_coincidencia || 0,
+        verification_id: verificationData.id_verificacion || null
+    });
+    
+    fetch('api/attendance/register-biometric.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const metodoBiometrico = getMethodDisplayName(verificationData.tipo_verificacion);
+            const scoreText = verificationData.puntuacion_coincidencia ? 
+                ` (${Math.round(verificationData.puntuacion_coincidencia)}% confianza)` : '';
+            
+            showNotification(
+                `${data.tipo === 'ENTRADA' ? 'Entrada' : 'Salida'} registrada con ${metodoBiometrico}${scoreText}`, 
+                'success'
+            );
+            
+            // Close all modals
+            if (typeof closeAttendanceRegisterModal === 'function') {
+                closeAttendanceRegisterModal();
+            }
+            
+            // Reload attendance data
+            if (typeof loadAttendanceDay === 'function') {
+                loadAttendanceDay();
+            }
+        } else {
+            showNotification('Error al registrar asistencia: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error registering attendance:', error);
+        showNotification('Error al registrar asistencia', 'error');
+    });
+}
+
+/**
+ * Map biometric method to legacy method names
+ */
+function mapToLegacyMethod(newMethod) {
+    const mapping = {
+        'HUELLA_DIGITAL': 'fingerprint',
+        'FACIAL': 'facial',
+        'TRADICIONAL': 'traditional'
+    };
+    return mapping[newMethod] || 'traditional';
+}
+
+/**
+ * Get display name for biometric method
+ */
+function getMethodDisplayName(method) {
+    const names = {
+        'HUELLA_DIGITAL': 'Huella Digital',
+        'FACIAL': 'Reconocimiento Facial',
+        'TRADICIONAL': 'Verificación Tradicional'
+    };
+    return names[method] || 'Verificación Biométrica';
+}
