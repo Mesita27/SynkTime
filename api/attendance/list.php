@@ -106,12 +106,19 @@ try {
             h.NOMBRE AS HORARIO_NOMBRE,
             h.HORA_ENTRADA,
             h.HORA_SALIDA,
-            h.TOLERANCIA
-        FROM ASISTENCIA a
-        JOIN EMPLEADO e ON a.ID_EMPLEADO = e.ID_EMPLEADO
-        JOIN ESTABLECIMIENTO est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
-        JOIN SEDE s ON est.ID_SEDE = s.ID_SEDE
-        LEFT JOIN HORARIO h ON h.ID_HORARIO = a.ID_HORARIO
+            h.TOLERANCIA,
+            a.VERIFICATION_METHOD as verification_method_legacy,
+            a.METODO_VERIFICACION as metodo_verificacion,
+            a.ID_VERIFICACION_BIOMETRICA,
+            vb.PUNTUACION_COINCIDENCIA,
+            vb.FOTO_VERIFICACION,
+            vb.RESULTADO_VERIFICACION
+        FROM asistencias a
+        JOIN empleados e ON a.ID_EMPLEADO = e.ID_EMPLEADO
+        JOIN establecimientos est ON e.ID_ESTABLECIMIENTO = est.ID_ESTABLECIMIENTO
+        JOIN sedes s ON est.ID_SEDE = s.ID_SEDE
+        LEFT JOIN horarios h ON h.ID_HORARIO = a.ID_HORARIO
+        LEFT JOIN VERIFICACION_BIOMETRICA vb ON a.ID_VERIFICACION_BIOMETRICA = vb.ID_VERIFICACION
         WHERE {$whereClause}
         ORDER BY CONCAT(a.FECHA, ' ', a.HORA) DESC, a.ID_ASISTENCIA DESC
         LIMIT :limit OFFSET :offset

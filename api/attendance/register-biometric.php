@@ -112,9 +112,22 @@ try {
         throw new Exception('No se puede determinar el tipo de registro para este empleado');
     }
 
-    // Handle image if provided (for facial recognition or traditional)
+    // Perform biometric verification and save photo
     $foto_nombre = null;
-    if ($image_data && ($verification_method === 'facial' || $verification_method === 'traditional')) {
+    $id_verificacion_biometrica = null;
+    
+    if ($verification_method !== 'traditional') {
+        // Call enhanced verification API
+        $verification_result = performBiometricVerification($id_empleado, $verification_method, $image_data);
+        
+        if (!$verification_result['success']) {
+            throw new Exception('Verificación biométrica fallida: ' . $verification_result['message']);
+        }
+        
+        $foto_nombre = $verification_result['foto_verificacion'];
+        $id_verificacion_biometrica = $verification_result['id_verificacion'];
+    } else if ($image_data) {
+        // Traditional photo capture
         $foto_nombre = saveAttendanceImage($image_data, $id_empleado, $tipo_registro);
     }
 
@@ -130,6 +143,9 @@ try {
         }
     }
 
+    // Map verification method to new enum values
+    $metodo_verificacion = mapVerificationMethod($verification_method);
+
     // Insert attendance record
     $stmt = $conn->prepare("
         INSERT INTO asistencias (
@@ -141,8 +157,10 @@ try {
             TARDANZA, 
             FOTO,
             VERIFICATION_METHOD,
+            METODO_VERIFICACION,
+            ID_VERIFICACION_BIOMETRICA,
             CREATED_AT
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     ");
 
     $stmt->execute([
@@ -153,23 +171,10 @@ try {
         $horario_usar['ID_HORARIO'],
         $tardanza,
         $foto_nombre,
-        $verification_method
+        $verification_method, // Legacy field
+        $metodo_verificacion, // New enum field
+        $id_verificacion_biometrica
     ]);
-
-    // Log biometric verification
-    if ($verification_method !== 'traditional') {
-        $stmt = $conn->prepare("
-            INSERT INTO biometric_logs (
-                ID_EMPLEADO,
-                VERIFICATION_METHOD,
-                VERIFICATION_SUCCESS,
-                FECHA,
-                HORA,
-                CREATED_AT
-            ) VALUES (?, ?, 1, ?, ?, NOW())
-        ");
-        $stmt->execute([$id_empleado, $verification_method, $fecha, $hora]);
-    }
 
     echo json_encode([
         'success' => true,
@@ -177,6 +182,8 @@ try {
         'tipo' => $tipo_registro,
         'empleado' => $empleado['NOMBRE'] . ' ' . $empleado['APELLIDO'],
         'verification_method' => $verification_method,
+        'metodo_verificacion' => $metodo_verificacion,
+        'foto' => $foto_nombre,
         'hora' => $hora
     ]);
 
@@ -186,6 +193,61 @@ try {
         'success' => false,
         'message' => $e->getMessage()
     ]);
+}
+
+/**
+ * Perform biometric verification through enhanced API
+ */
+function performBiometricVerification($id_empleado, $verification_method, $image_data) {
+    // Map legacy verification methods to new enum values
+    $tipo_verificacion = mapVerificationMethod($verification_method);
+    
+    // Prepare verification data
+    $post_data = [
+        'id_empleado' => $id_empleado,
+        'tipo_verificacion' => $tipo_verificacion,
+        'foto_verificacion' => $image_data,
+        'datos_verificacion' => $image_data // For now, use image as verification data
+    ];
+    
+    // Call internal verification API
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => 'http://localhost:8000/api/biometric/verify-enhanced.php',
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($post_data),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_COOKIE => session_name() . '=' . session_id() // Pass session
+    ]);
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($http_code !== 200 || !$response) {
+        throw new Exception('Error en verificación biométrica');
+    }
+    
+    $result = json_decode($response, true);
+    if (!$result) {
+        throw new Exception('Respuesta inválida de verificación biométrica');
+    }
+    
+    return $result;
+}
+
+/**
+ * Map legacy verification methods to new enum values
+ */
+function mapVerificationMethod($legacy_method) {
+    $mapping = [
+        'fingerprint' => 'HUELLA_DIGITAL',
+        'facial' => 'FACIAL',
+        'traditional' => 'TRADICIONAL'
+    ];
+    
+    return $mapping[$legacy_method] ?? 'TRADICIONAL';
 }
 
 /**
