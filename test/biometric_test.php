@@ -46,10 +46,14 @@ $requiredFiles = [
     '../api/biometrics/recognize_face.php',
     '../api/biometrics/identify_fingerprint.php',
     '../api/biometrics/mark_attendance.php',
+    '../api/biometrics/employee_status.php',
     '../views/biometrics/attendance.php',
     '../views/biometrics/enroll.php',
     '../public/js/biometrics.js',
-    '../public/images/placeholders/fingerprint_placeholder.svg'
+    '../public/images/placeholders/fingerprint_placeholder.svg',
+    '../lib/biometric_integration.php',
+    '../biometric-enrollment.php',
+    '../INTEGRATION_GUIDE.md'
 ];
 
 foreach ($requiredFiles as $file) {
