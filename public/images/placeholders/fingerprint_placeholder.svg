@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <rect width="240" height="240" fill="#f8f9fa" stroke="#dee2e6" stroke-width="2"/>
+  <circle cx="120" cy="120" r="80" fill="none" stroke="#6c757d" stroke-width="2"/>
+  <path d="M80 120a40 40 0 1 1 80 0M90 120a30 30 0 1 1 60 0M100 120a20 20 0 1 1 40 0M110 120a10 10 0 1 1 20 0" 
+        fill="none" stroke="#6c757d" stroke-width="1.5"/>
+  <text x="120" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#6c757d">
+    Huella Dactilar
+  </text>
+</svg>
