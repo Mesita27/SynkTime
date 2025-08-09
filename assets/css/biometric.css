@@ -1,0 +1,552 @@
+/* ===== BIOMETRIC SYSTEM STYLES ===== */
+
+/* Biometric Verification Modal */
+.biometric-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.biometric-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.biometric-modal-content {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+}
+
+.biometric-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.biometric-modal-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.biometric-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.biometric-close:hover {
+    background: var(--background);
+    color: var(--text-primary);
+}
+
+/* Verification Method Selection */
+.verification-methods {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.verification-method {
+    padding: 1.5rem;
+    border: 2px solid var(--border);
+    border-radius: var(--border-radius);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface);
+}
+
+.verification-method:hover {
+    border-color: var(--primary-light);
+    background: var(--primary-lighter);
+}
+
+.verification-method.selected {
+    border-color: var(--primary);
+    background: var(--primary-lighter);
+}
+
+.verification-method.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--border);
+    background: var(--background);
+}
+
+.verification-method-icon {
+    font-size: 2.5rem;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.verification-method.disabled .verification-method-icon {
+    color: var(--text-secondary);
+}
+
+.verification-method-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+}
+
+.verification-method-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Biometric Process Area */
+.biometric-process {
+    background: var(--background);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin: 1.5rem 0;
+    text-align: center;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.biometric-camera-area {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.biometric-video {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+    background: #000;
+}
+
+.biometric-canvas {
+    display: none;
+}
+
+.camera-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
+    border: 3px solid var(--primary);
+    border-radius: 50%;
+    border-style: dashed;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.5; transform: translate(-50%, -50%) scale(1.05); }
+}
+
+.fingerprint-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+.fingerprint-scanner {
+    width: 150px;
+    height: 150px;
+    border: 3px solid var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-lighter);
+    position: relative;
+    overflow: hidden;
+}
+
+.fingerprint-scanner.scanning {
+    animation: fingerprintScan 2s infinite;
+}
+
+@keyframes fingerprintScan {
+    0%, 100% { border-color: var(--primary); }
+    50% { border-color: var(--success); box-shadow: 0 0 20px rgba(72, 187, 120, 0.3); }
+}
+
+.fingerprint-icon {
+    font-size: 4rem;
+    color: var(--primary);
+}
+
+.finger-selection {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.finger-option {
+    padding: 0.75rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background: var(--surface);
+}
+
+.finger-option:hover {
+    border-color: var(--primary-light);
+    background: var(--primary-lighter);
+}
+
+.finger-option.selected {
+    border-color: var(--primary);
+    background: var(--primary-lighter);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* Status Messages */
+.biometric-status {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.biometric-status.info {
+    background: rgba(43, 125, 233, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(43, 125, 233, 0.2);
+}
+
+.biometric-status.success {
+    background: rgba(72, 187, 120, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(72, 187, 120, 0.2);
+}
+
+.biometric-status.warning {
+    background: rgba(246, 173, 85, 0.1);
+    color: var(--warning);
+    border: 1px solid rgba(246, 173, 85, 0.2);
+}
+
+.biometric-status.error {
+    background: rgba(245, 101, 101, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(245, 101, 101, 0.2);
+}
+
+/* Progress Indicators */
+.biometric-progress {
+    margin: 1.5rem 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.progress-text {
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Device Status */
+.device-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--background);
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.device-status-icon {
+    font-size: 1rem;
+}
+
+.device-status.connected {
+    color: var(--success);
+}
+
+.device-status.disconnected {
+    color: var(--danger);
+}
+
+.device-status.connecting {
+    color: var(--warning);
+}
+
+/* Biometric Enrollment Page */
+.biometric-enrollment-container {
+    background: var(--surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.enrollment-header {
+    background: var(--primary);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.enrollment-title {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.enrollment-subtitle {
+    opacity: 0.9;
+    font-size: 1rem;
+}
+
+.enrollment-content {
+    padding: 2rem;
+}
+
+.enrollment-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--background);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    border: 1px solid var(--border);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    display: block;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+.employee-search {
+    background: var(--background);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+}
+
+.search-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+}
+
+.employee-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    background: var(--surface);
+}
+
+.employee-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s ease;
+}
+
+.employee-item:hover {
+    background: var(--background);
+}
+
+.employee-item:last-child {
+    border-bottom: none;
+}
+
+.employee-info {
+    flex: 1;
+}
+
+.employee-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.employee-details {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.employee-biometric-status {
+    display: flex;
+    gap: 0.5rem;
+    margin-right: 1rem;
+}
+
+.biometric-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.biometric-badge.enrolled {
+    background: rgba(72, 187, 120, 0.1);
+    color: var(--success);
+}
+
+.biometric-badge.not-enrolled {
+    background: rgba(245, 101, 101, 0.1);
+    color: var(--danger);
+}
+
+/* Loading States */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    text-align: center;
+    color: var(--text-secondary);
+    margin-top: 1rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .biometric-modal-content {
+        width: 95%;
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+    
+    .verification-methods {
+        grid-template-columns: 1fr;
+    }
+    
+    .search-form {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .enrollment-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .finger-selection {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .biometric-modal-content {
+        height: 100vh;
+        max-height: none;
+        border-radius: 0;
+        margin: 0;
+        width: 100%;
+    }
+    
+    .enrollment-header {
+        padding: 1.5rem;
+    }
+    
+    .enrollment-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* Accessibility */
+.verification-method:focus,
+.finger-option:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.biometric-close:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .biometric-modal {
+        display: none;
+    }
+}
