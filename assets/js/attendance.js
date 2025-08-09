@@ -1238,3 +1238,234 @@ function saveObservation() {
         saveBtn.disabled = false;
     });
 }
+
+// ===========================================================================
+// 12. INTEGRACIÓN CON SISTEMA BIOMÉTRICO
+// ===========================================================================
+
+/**
+ * Open biometric verification modal for employee
+ */
+window.openBiometricVerificationModal = function(employeeId, employeeName) {
+    // Store selected employee for biometric verification
+    empleadoSeleccionado = employeeId;
+    window.selectedEmployeeName = employeeName;
+    
+    // Set employee in the biometric modal's select
+    const employeeSelect = document.getElementById('employee_id');
+    if (employeeSelect) {
+        employeeSelect.value = employeeId;
+    }
+    
+    // Close attendance register modal
+    closeAttendanceRegisterModal();
+    
+    // Open biometric verification modal
+    if (typeof openBiometricVerification === 'function') {
+        openBiometricVerification();
+    } else {
+        // Fallback to traditional method if biometric system is not available
+        openAttendancePhotoModal(employeeId, employeeName);
+    }
+};
+
+/**
+ * Register attendance with biometric verification result
+ */
+window.registerAttendanceWithBiometric = function(verificationResult) {
+    if (!empleadoSeleccionado || !tipoRegistroSeleccionado) {
+        showNotification('Error: Datos de empleado o tipo no disponibles', 'error');
+        return;
+    }
+    
+    const attendanceData = {
+        employee_id: empleadoSeleccionado,
+        tipo: tipoRegistroSeleccionado,
+        verification_method: verificationResult.method,
+        image_data: verificationResult.image_data || '',
+        observacion: '',
+        registro_manual: 'N'
+    };
+    
+    // Show loading state
+    showNotification('Registrando asistencia con verificación biométrica...', 'info');
+    
+    // Register attendance using biometric API
+    fetch('api/attendance/register-biometric.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(attendanceData)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showNotification(
+                `Asistencia ${tipoRegistroSeleccionado.toLowerCase()} registrada correctamente con ${getVerificationMethodName(verificationResult.method)}`,
+                'success'
+            );
+            
+            // Refresh attendance list
+            loadAttendanceDay();
+            
+            // Reset selection
+            empleadoSeleccionado = null;
+            tipoRegistroSeleccionado = null;
+            window.selectedEmployeeName = null;
+            
+        } else {
+            throw new Error(result.message || 'Error al registrar asistencia');
+        }
+    })
+    .catch(error => {
+        console.error('Error registering biometric attendance:', error);
+        showNotification('Error: ' + error.message, 'error');
+        
+        // Offer fallback to traditional method
+        const fallbackMsg = '¿Desea registrar la asistencia de forma tradicional?';
+        if (confirm(fallbackMsg)) {
+            openAttendancePhotoModal(empleadoSeleccionado, window.selectedEmployeeName);
+        }
+    });
+};
+
+/**
+ * Get human-readable verification method name
+ */
+function getVerificationMethodName(method) {
+    const methods = {
+        'fingerprint': 'verificación de huella dactilar',
+        'facial': 'reconocimiento facial',
+        'traditional': 'fotografía tradicional'
+    };
+    return methods[method] || 'método desconocido';
+}
+
+/**
+ * Enhanced attendance register modal opening with biometric support
+ */
+const originalOpenAttendanceRegisterModal = window.openAttendanceRegisterModal;
+window.openAttendanceRegisterModal = function() {
+    // Call original function
+    if (originalOpenAttendanceRegisterModal) {
+        originalOpenAttendanceRegisterModal();
+    }
+    
+    // Add biometric status to employee listing if biometric system is available
+    if (window.biometricSystem) {
+        // Update device status in modal
+        setTimeout(() => {
+            if (window.biometricSystem.updateDeviceStatus) {
+                window.biometricSystem.updateDeviceStatus();
+            }
+        }, 500);
+    }
+};
+
+/**
+ * Fallback function for traditional attendance when biometric fails
+ */
+window.proceedWithTraditionalAttendance = function() {
+    if (empleadoSeleccionado && window.selectedEmployeeName) {
+        openAttendancePhotoModal(empleadoSeleccionado, window.selectedEmployeeName);
+    } else {
+        showNotification('Error: No hay empleado seleccionado', 'error');
+    }
+};
+
+/**
+ * Integration with type selection (ENTRADA/SALIDA)
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for type selection changes to store the selected type
+    const originalSelectType = window.selectType;
+    if (originalSelectType) {
+        window.selectType = function(tipo, element) {
+            // Call original function
+            originalSelectType(tipo, element);
+            
+            // Store type for biometric registration
+            tipoRegistroSeleccionado = tipo;
+        };
+    }
+});
+
+// ===========================================================================
+// 13. NOTIFICACIONES MEJORADAS PARA BIOMETRÍA
+// ===========================================================================
+
+/**
+ * Enhanced notification system for biometric feedback
+ */
+function showBiometricNotification(message, type = 'info', duration = 5000) {
+    // Use existing notification system if available
+    if (typeof showNotification === 'function') {
+        showNotification(message, type);
+        return;
+    }
+    
+    // Fallback notification implementation
+    const notification = document.createElement('div');
+    notification.className = `biometric-notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas fa-${getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Style the notification
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10001;
+        padding: 1rem;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        max-width: 300px;
+        background: ${getNotificationColor(type)};
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Auto remove
+    setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, duration);
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        info: 'info-circle',
+        success: 'check-circle',
+        warning: 'exclamation-triangle',
+        error: 'times-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+function getNotificationColor(type) {
+    const colors = {
+        info: '#2B7DE9',
+        success: '#48BB78',
+        warning: '#F6AD55',
+        error: '#F56565'
+    };
+    return colors[type] || '#2B7DE9';
+}

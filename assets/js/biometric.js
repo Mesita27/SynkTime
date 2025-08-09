@@ -348,7 +348,7 @@ class BiometricSystem {
                 return;
             }
 
-            const response = await fetch('/home/runner/work/Synktime/Synktime/api/biometric/verify.php', {
+            const response = await fetch('api/biometric/verify.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -387,7 +387,7 @@ class BiometricSystem {
             // Simulate fingerprint data
             const fingerprintData = this.generateSimulatedFingerprintData();
 
-            const response = await fetch('/home/runner/work/Synktime/Synktime/api/biometric/verify.php', {
+            const response = await fetch('api/biometric/verify.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

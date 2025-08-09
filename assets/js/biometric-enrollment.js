@@ -51,7 +51,7 @@ class BiometricEnrollmentPage {
      */
     async loadEmployees(filters = {}) {
         try {
-            const response = await fetch('/home/runner/work/Synktime/Synktime/api/biometric/list-employees.php', {
+            const response = await fetch('api/biometric/list-employees.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -84,7 +84,7 @@ class BiometricEnrollmentPage {
      */
     async loadStatistics() {
         try {
-            const response = await fetch('/home/runner/work/Synktime/Synktime/api/biometric/stats.php');
+            const response = await fetch('api/biometric/stats.php');
             const result = await response.json();
             
             if (result.success) {
@@ -609,7 +609,7 @@ class BiometricEnrollmentPage {
                     : null
             };
 
-            const response = await fetch(`/home/runner/work/Synktime/Synktime/api/biometric/enroll-${this.currentEnrollmentMethod}.php`, {
+            const response = await fetch(`api/biometric/enroll-${this.currentEnrollmentMethod}.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
