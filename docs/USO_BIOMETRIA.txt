@@ -1,0 +1,190 @@
+Sistema Biométrico SynkTime - Guía de Uso
+=============================================
+
+DESCRIPCIÓN GENERAL
+==================
+El sistema biométrico de SynkTime permite el registro de asistencia de empleados mediante tres métodos de verificación: reconocimiento facial, huella dactilar y registro tradicional con fotografía.
+
+MÉTODOS DE VERIFICACIÓN
+=====================
+
+1. REGISTRO POR RECONOCIMIENTO FACIAL
+   - Utiliza cámara para capturar imagen del rostro del empleado
+   - Compara con patrones faciales previamente registrados
+   - Umbral de coincidencia: 0.42 (configurado en sistema)
+   - Proceso automático una vez detectado el rostro
+
+2. REGISTRO POR HUELLA DACTILAR
+   - Requiere lector de huella dactilar conectado
+   - Compara con templates de huella previamente registrados
+   - Umbral de coincidencia: 40 puntos (configurado en sistema)
+   - Soporta 10 tipos de dedos diferentes
+
+3. REGISTRO TRADICIONAL
+   - Captura fotografía sin verificación biométrica
+   - Para empleados sin datos biométricos registrados
+   - Registro manual del supervisor o administrador
+
+CÁLCULO DE TARDANZA
+==================
+- ENTRADA: Se compara la hora de registro con HORA_ENTRADA + TOLERANCIA del horario asignado
+- SALIDA: No se calcula tardanza (marcado como 'N')
+- FERIADOS: Si la fecha coincide con días cívicos de la empresa, tardanza = 'N'
+- La tardanza se almacena en minutos en la tabla asistencias
+
+ARQUITECTURA DEL SISTEMA
+=======================
+
+RUTAS DE API PHP:
+----------------
+/api/biometrics/face/enroll       - Inscripción de patrón facial
+/api/biometrics/face/verify       - Verificación facial
+/api/biometrics/fingerprint/enroll - Inscripción de huella
+/api/biometrics/fingerprint/verify - Verificación de huella
+/api/biometrics/traditional/capture - Captura tradicional
+/api/asistencia/registrar         - Registro unificado de asistencia
+
+SERVICIOS EXTERNOS:
+------------------
+- InsightFace-REST: http://localhost:18081
+  Endpoints: /detect, /extract (embeddings), comparación por similitud coseno
+- SourceAFIS HTTP: http://localhost:18082
+  Endpoints: /template, /verify
+
+ESTRUCTURA DE CARPETAS:
+----------------------
+config/
+  biometrics.php              - Configuración del sistema
+docs/
+  USO_BIOMETRIA.txt          - Este archivo
+  BIOMETRICS_SETUP.md        - Guía de instalación
+api/
+  biometrics/                - Controladores biométricos
+    FaceController.php
+    FingerprintController.php
+    TraditionalController.php
+  asistencia/
+    RegistrarController.php   - Registro unificado
+services/
+  Biometrics/               - Servicios de integración
+    FaceService.php
+    FingerprintService.php
+  AsistenciaService.php     - Lógica de asistencia
+  EmployeeService.php       - Consultas de empleados
+repositories/               - Capa de datos
+  AsistenciaRepository.php
+  BiometricDataRepository.php
+  BiometricLogsRepository.php
+  EmpleadoRepository.php
+views/
+  asistencia/index.php      - Página principal de asistencias
+  biometria/enrolamiento.php - Página de inscripción biométrica
+uploads/
+  asistencia/               - Fotos de asistencia
+  biometrics/               - Datos biométricos
+
+SISTEMA DE LOGS:
+---------------
+Tabla: biometric_logs
+- Registra todas las operaciones biométricas
+- Incluye: ID empleado, método, éxito/fallo, fecha/hora
+- Retención: 90 días (configurable)
+
+PROCESO DE INSCRIPCIÓN (ENROLAMIENTO)
+===================================
+
+INSCRIPCIÓN FACIAL:
+------------------
+1. Acceder a "Inscripción Biométrica" en el sistema
+2. Seleccionar empleado
+3. Elegir "Inscripción Facial"
+4. Capturar 1-3 imágenes del rostro desde diferentes ángulos
+5. El sistema procesa y almacena los patrones faciales
+6. Confirma inscripción exitosa
+
+INSCRIPCIÓN DE HUELLA:
+---------------------
+1. Acceder a "Inscripción Biométrica"
+2. Seleccionar empleado
+3. Elegir "Inscripción de Huella"
+4. Seleccionar tipo de dedo (pulgar derecho, índice izquierdo, etc.)
+5. Colocar dedo en lector o subir imagen de huella
+6. El sistema genera template y lo almacena
+7. Confirma inscripción exitosa
+
+PROCESO DE VERIFICACIÓN
+======================
+
+VERIFICACIÓN FACIAL:
+-------------------
+1. Empleado se posiciona frente a la cámara
+2. Sistema captura imagen automáticamente
+3. Extrae características faciales
+4. Compara con patrones almacenados
+5. Si coincidencia >= 0.42, verifica identidad
+6. Registra asistencia con timestamp y foto
+
+VERIFICACIÓN DE HUELLA:
+----------------------
+1. Empleado coloca dedo en lector
+2. Sistema captura imagen de huella
+3. Genera template temporal
+4. Compara con templates almacenados
+5. Si coincidencia >= 40 puntos, verifica identidad
+6. Registra asistencia (usa imagen placeholder para foto)
+
+CONFIGURACIÓN DE EJEMPLO:
+========================
+Para configurar los servicios biométricos, editar config/biometrics.php:
+
+FACE_API_BASE=http://localhost:18081
+FINGER_API_BASE=http://localhost:18082
+FACE_MATCH_THRESHOLD=0.42
+FINGER_MATCH_THRESHOLD=40
+
+RESOLUCIÓN DE PROBLEMAS COMUNES
+==============================
+
+Error "Servicios biométricos no disponibles":
+- Verificar que InsightFace-REST esté ejecutándose en puerto 18081
+- Verificar que SourceAFIS HTTP esté ejecutándose en puerto 18082
+- Revisar conectividad de red
+
+Error "Empleado no encontrado":
+- Verificar que el empleado esté activo en el sistema
+- Revisar que tenga horarios asignados para la fecha actual
+
+Error "No se puede determinar tipo de registro":
+- Verificar configuración de horarios del empleado
+- Asegurar que no tenga registros duplicados para el mismo horario
+
+Cámara no detectada:
+- Verificar permisos del navegador para acceso a cámara
+- En producción, requerirá HTTPS para acceso a cámara
+- Revisar compatibilidad del navegador (Chrome 60+, Firefox 55+)
+
+Lector de huella no detectado:
+- Verificar drivers del dispositivo
+- Confirmar compatibilidad del navegador
+- Revisar conexión USB del dispositivo
+
+COMPATIBILIDAD
+=============
+Navegadores soportados:
+- Chrome 60+
+- Firefox 55+
+- Safari 11+
+- Edge 79+
+
+Requisitos del servidor:
+- PHP 7.4+ (recomendado 8.1+)
+- MySQL 5.7+ / MariaDB 10.3+
+- Extensiones: PDO, GD, cURL
+- Espacio de almacenamiento suficiente para imágenes
+
+CONTACTO Y SOPORTE
+=================
+Para soporte técnico o reportar problemas:
+- Revisar logs del sistema en tabla biometric_logs
+- Documentar pasos para reproducir el error
+- Incluir información del navegador y dispositivos utilizados
